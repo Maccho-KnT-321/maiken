@@ -221,7 +221,11 @@ function saveImgs(){try{localStorage.setItem(LS_IMGS,JSON.stringify(imgs))}catch
 
 /* ── cloud sync (GAS) ── */
 const LS_CLOUD='maiken_cloud_v1';
+const EMBEDDED_GAS_URL='https://script.google.com/macros/s/AKfycbzTcyZdX6vLxLkgx88zkVWeYABPH0mPR7WHw_U_W5BtSNVbciqrziuzfYaZ-6A92YN0/exec';
+const SYNC_SECRET='taichan0716';
 let cloud=load(LS_CLOUD,{url:'',auto:true,last:null});
+// 埋め込みURLを最優先で適用（端末ごとの設定不要）
+if(EMBEDDED_GAS_URL&&cloud.url!==EMBEDDED_GAS_URL){cloud.url=EMBEDDED_GAS_URL;saveCloud();}
 let syncTimer=null,syncState='idle';
 function saveCloud(){try{localStorage.setItem(LS_CLOUD,JSON.stringify(cloud))}catch(e){}}
 function queueSync(){
@@ -234,7 +238,7 @@ async function pushCloud(){
   if(!cloud.url)return false;
   syncState='saving';updateChip();
   try{
-    const r=await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'push',tasks,days})});
+    const r=await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'push',secret:SYNC_SECRET,tasks,days})});
     const j=await r.json();
     if(!j.ok)throw 0;
     cloud.last=Date.now();saveCloud();
@@ -243,7 +247,7 @@ async function pushCloud(){
 }
 async function pullCloudRaw(){
   const sep=cloud.url.includes('?')?'&':'?';
-  const r=await fetch(cloud.url+sep+'action=pull');
+  const r=await fetch(cloud.url+sep+'action=pull&secret='+encodeURIComponent(SYNC_SECRET));
   return await r.json();
 }
 function mergeDays(remote){
@@ -691,17 +695,16 @@ function viewSettings(){
     return`<div class="card"><div class="card-title">${label}</div>${rows}${add}</div>`;
   };
   return secEd('morning','🌅 朝の部のメニュー','o')+secEd('evening','🌙 夜の部のメニュー','p')+`
-    <div class="card"><div class="card-title">☁️ Googleスプレッドシート連携（GAS）</div>
-      <label style="font-size:11px;font-weight:700;color:#64748b">GASウェブアプリのURL</label>
-      <input class="gas-input" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(cloud.url)}" onchange="act.cloudUrl(this.value)">
-      <div class="toggle-row"><span>変更したら自動でクラウドに保存する</span>
-        <input type="checkbox" ${cloud.auto?'checked':''} onchange="act.cloudAuto(this.checked)" style="width:20px;height:20px"></div>
+    <div class="card"><div class="card-title">☁️ クラウド同期（じどう）</div>
+      <div class="sig-note" style="margin-bottom:10px;color:#059669;font-weight:700">✅ このアプリは同期せってい済みです。どの端末でも、開くだけで記録が同期されます（URL設定は不要）。</div>
       <div class="cloud-btns">
         <button class="cbtn t" onclick="act.cloudTest()">接続テスト</button>
         <button class="cbtn s" onclick="act.cloudPush()">今すぐ送信</button>
-        <button class="cbtn l" onclick="act.cloudPull()">読み込む</button>
+        <button class="cbtn l" onclick="act.cloudPull()">今すぐ読み込む</button>
       </div>
-      <div class="sig-note" style="margin-top:10px">送信すると「記録」シートに日別の行が入ります。スマホ等の別端末でも同じURLを貼れば、記録は日付ごとに賢く合体します。メニューの「どうがURL」も同期されますが、図解がぞうは各端末内のみの保存です。</div>
+      <div class="toggle-row"><span>変更したら自動でクラウドに保存する</span>
+        <input type="checkbox" ${cloud.auto?'checked':''} onchange="act.cloudAuto(this.checked)" style="width:20px;height:20px"></div>
+      <div class="sig-note" style="margin-top:10px">記録は日付ごとに賢く合体するので、複数端末で同時に使っても上書き事故は起きません。メニューの「どうがURL」も同期されます（図解がぞうは各端末内のみの保存）。</div>
     </div>
     <div class="card"><div class="card-title">💾 データのバックアップ</div>
       <div class="io-row">
@@ -751,7 +754,7 @@ function renderOverlay(){
 }
 
 render();
-if(cloud.url&&cloud.auto)autoPull();
+if(cloud.url)autoPull();
 </script>
 </body>
 </html>
