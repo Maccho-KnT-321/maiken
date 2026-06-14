@@ -80,6 +80,24 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .rep-period{display:flex;gap:8px;margin-bottom:14px}
 .rep-pill{border:2px solid #fce7f3;font-family:inherit;font-weight:700;font-size:13px;border-radius:99px;padding:8px 16px;cursor:pointer;background:#fff;color:#be185d}
 .rep-pill.on{background:#ec4899;color:#fff;border-color:#ec4899}
+/* family schedule grid */
+.flegend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.fleg{display:flex;align-items:center;gap:5px;font-size:12px;color:#6b7280;font-weight:700}
+.fleg .fld{width:13px;height:13px;border-radius:4px}
+.fgrid-wrap{overflow:auto;border-radius:12px;border:1px solid #fce7f3;max-height:66vh}
+.fgrid{position:relative;display:grid;grid-template-columns:40px repeat(7,1fr);min-width:600px}
+.fgh{position:sticky;top:0;z-index:3;background:#be185d;color:#fff;font-size:13px;font-weight:900;text-align:center;padding:8px 2px;border-left:1px solid rgba(255,255,255,.12)}
+.fgh.today{background:#ec4899}
+.fgh.fcorner{left:0;z-index:4;font-size:11px}
+.fcol{position:relative;border-left:1px solid #fce7f3}
+.ftimecol{position:sticky;left:0;z-index:2;background:#fff}
+.fgtime{font-size:10px;color:#9ca3af;text-align:right;padding-right:4px;height:15px;line-height:15px;border-top:1px solid #fdf2f8}
+.fgtime.hour{color:#6b7280;font-weight:700;border-top:1px solid #fce7f3}
+.fgcell{height:15px;border-top:1px solid #fdf5f9}
+.fgcell.hour{border-top:1px solid #fce7f3}
+.fev{position:absolute;left:2px;right:2px;border-radius:7px;padding:3px 6px;color:#fff;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.2);line-height:1.3}
+.fev .fet{font-weight:900;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fev .fep{font-size:10px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* tab bar */
 .tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.97);border-top:2px solid #fce7f3;backdrop-filter:blur(8px);z-index:40}
 .tabbar-in{max-width:620px;margin:0 auto;display:flex}
@@ -305,7 +323,7 @@ function buildAiPrompt(a){
 
 /* ===== タブUI ===== */
 function renderTabs(){
-  const defs=[['home','🏠','ホーム'],['report','📋','レポート'],['cheer','💌','おうえん']];
+  const defs=[['home','🏠','ホーム'],['schedule','🗓','よてい'],['report','📋','レポート'],['cheer','💌','おうえん']];
   document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>
     `<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')"><span class="ico">${i}</span>${l}</button>`).join('');
 }
@@ -316,39 +334,62 @@ function render(){
   renderTabs();
   const v=document.getElementById('view');
   if(tab==='home')v.innerHTML=viewHome();
+  else if(tab==='schedule')v.innerHTML=viewSchedule();
   else if(tab==='report')v.innerHTML=viewReport();
   else v.innerHTML=viewCheer();
 }
 
 /* ===== ホーム ===== */
-function scheduleCard(){
-  if(!plans||!plans.length)return '';
+function viewSchedule(){
   const wn=['日','月','火','水','木','金','土'];
   const todayDow=new Date().getDay();
-  let html='<div class="card"><div class="card-title">🗓 こんしゅうの よてい</div>';
-  // 週のはじまり（設定）から7日ぶんを順に
-  for(let off=0;off<7;off++){
-    const d=(weekStart+off)%7;
-    const dayPlans=plans.filter(p=>p.day===d).sort((a,b)=>toMin(a.start)-toMin(b.start));
-    if(!dayPlans.length)continue;
-    const isToday=off===0;
-    html+=`<div style="margin-bottom:12px">
-      <div style="font-size:14px;font-weight:900;color:${isToday?'#ec4899':'#6b7280'};margin-bottom:6px">${wn[d]}よう日${isToday?'（きょう）':''}</div>`;
-    dayPlans.forEach(p=>{
+  const START=6, END=22, slotH=15;
+  const rows=(END-START)*4;
+
+  if(!plans||!plans.length){
+    return `<div class="card"><div class="card-title">🗓 1しゅうかんの よてい</div><div class="empty">まだ よていは とうろくされていません</div></div>
+      <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>`;
+  }
+
+  // 時間目盛り
+  let timeCol='<div class="fcol ftimecol"><div class="fgh fcorner">時</div>';
+  for(let r=0;r<rows;r++){const min=START*60+r*15;const isHour=min%60===0;
+    timeCol+=`<div class="fgtime ${isHour?'hour':''}">${isHour?String(min/60).padStart(2,'0')+':00':''}</div>`;}
+  timeCol+='</div>';
+
+  // 各曜日
+  let cols='';
+  for(let idx=0;idx<7;idx++){
+    const d=(weekStart+idx)%7;
+    let cells='';
+    for(let r=0;r<rows;r++){const min=START*60+r*15;const isHour=min%60===0;
+      cells+=`<div class="fgcell ${isHour?'hour':''}"></div>`;}
+    let evs='';
+    plans.filter(p=>p.day===d).forEach(p=>{
+      const s=toMin(p.start),e=toMin(p.end);
+      const top=(s-START*60)/15*slotH;
+      const h=Math.max((e-s)/15*slotH-2,16);
       const col=p.color||'#64748b';
-      html+=`<div style="display:flex;align-items:center;gap:10px;padding:6px 0">
-        <div style="width:6px;height:34px;border-radius:3px;background:${col};flex-shrink:0"></div>
-        <div style="font-size:13px;color:#9ca3af;font-weight:700;width:90px;flex-shrink:0">${esc(p.start)}-${esc(p.end)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:16px;font-weight:700;color:#374151">${esc(p.title)}</div>
-          ${p.place?`<div style="font-size:12px;color:#9ca3af">📍${esc(p.place)}</div>`:''}
-        </div>
+      evs+=`<div class="fev" style="top:${top}px;height:${h}px;background:${col}">
+        <div class="fet">${esc(p.title)}</div>
+        ${h>34&&p.place?`<div class="fep">📍${esc(p.place)}</div>`:''}
+        ${h>50?`<div class="fep">${esc(p.start)}-${esc(p.end)}</div>`:''}
       </div>`;
     });
-    html+='</div>';
+    cols+=`<div class="fcol"><div class="fgh ${d===todayDow?'today':''}">${wn[d]}</div><div style="position:relative">${cells}${evs}</div></div>`;
   }
-  html+='</div>';
-  return html;
+  // 凡例
+  const used={};plans.forEach(p=>{if(p.color)used[p.color]=true});
+  const legend=Object.keys(used).map(c=>`<div class="fleg"><span class="fld" style="background:${c}"></span>${esc(PLAN_COLORS_NAME[c]||'')}</div>`).join('');
+
+  return `
+    <div class="card" style="padding:14px">
+      <div class="card-title">🗓 1しゅうかんの よてい</div>
+      ${legend?`<div class="flegend">${legend}</div>`:''}
+      <div class="fgrid-wrap"><div class="fgrid">${timeCol}${cols}</div></div>
+    </div>
+    <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>
+  `;
 }
 
 function viewHome(){
@@ -409,7 +450,6 @@ function viewHome(){
     </div>
     ${recordHtml}
     <div class="card"><div class="card-title">📔 さいきん できたこと</div>${diaryHtml}</div>
-    ${scheduleCard()}
     <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>
   `;
 }
