@@ -117,6 +117,35 @@ svg.line-chart{width:100%;height:160px}
 .io-btn.ex{background:linear-gradient(90deg,#fb923c,#f43f5e);color:#fff}
 .io-btn.im{background:#e0e7ff;color:#4338ca}
 
+/* schedule */
+.sch-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px}
+.sch-toolbar .st-title{font-size:15px;font-weight:900;color:#fff}
+.sch-addbtn{border:none;font-family:inherit;font-weight:900;font-size:12px;border-radius:99px;padding:8px 14px;background:linear-gradient(90deg,#0ea5e9,#6366f1);color:#fff;cursor:pointer}
+.grid-wrap{background:rgba(255,255,255,.96);border-radius:14px;margin-top:12px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.25);max-height:70vh}
+.grid{position:relative;display:grid;grid-template-columns:38px repeat(7,1fr);min-width:560px}
+.gh{position:sticky;top:0;z-index:3;background:#1e1b4b;color:#fff;font-size:11px;font-weight:900;text-align:center;padding:6px 2px;border-left:1px solid rgba(255,255,255,.1)}
+.gh.today{background:#6366f1}
+.gh.corner{left:0;z-index:4}
+.gcol{position:relative;border-left:1px solid #eef;min-height:100%}
+.gtime{font-size:9px;color:#94a3b8;text-align:right;padding-right:4px;height:14px;line-height:14px;border-top:1px solid #f1f5f9}
+.gtime.hour{color:#475569;font-weight:700;border-top:1px solid #e2e8f0}
+.gcell{height:14px;border-top:1px solid #f6f7fb;cursor:pointer}
+.gcell.hour{border-top:1px solid #e8ebf3}
+.gcell:active{background:#eef2ff}
+.timecol{position:sticky;left:0;z-index:2;background:rgba(255,255,255,.96)}
+.ev{position:absolute;left:2px;right:2px;border-radius:6px;padding:2px 5px;font-size:10px;color:#fff;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2);line-height:1.25}
+.ev .et{font-weight:900;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .ep{font-size:9px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.color-row{display:flex;gap:8px;flex-wrap:wrap}
+.color-dot{width:30px;height:30px;border-radius:8px;cursor:pointer;border:3px solid transparent}
+.color-dot.on{border-color:#1e293b;transform:scale(1.08)}
+.time-sel{display:flex;gap:6px;align-items:center}
+.time-sel select{flex:1;font-family:inherit;border:2px solid #e2e8f0;border-radius:10px;padding:8px;font-size:14px;font-weight:700}
+.sch-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#cbd5e1;font-weight:700}
+.leg .ld{width:12px;height:12px;border-radius:3px}
+.copyday-btn{border:none;font-family:inherit;font-weight:700;font-size:11px;border-radius:8px;padding:6px 10px;background:#e2e8f0;color:#475569;cursor:pointer}
+
 /* cheer */
 .cheer-banner{background:linear-gradient(120deg,#ec4899,#f97316);border-radius:16px;padding:14px 16px;margin-top:14px;box-shadow:0 8px 24px rgba(236,72,153,.35);cursor:pointer}
 .cheer-banner .ct{color:#fff;font-weight:900;font-size:14px;display:flex;align-items:center;gap:6px}
@@ -256,6 +285,41 @@ let editing=null;
 let pendingImg;          // 編集中の画像（undefined=変更なし, null=削除, 文字列=新画像）
 let repDays=30;          // レポート対象期間
 let cheers=load('maiken_cheers_v1',[]);   // 受信した応援
+let plans=load('maiken_plans_v1',[]);     // 週間スケジュール
+let schView=null;                          // 編集中の予定
+const PLAN_COLORS=[
+  {name:'あお（学校）',c:'#3b82f6'},
+  {name:'みどり（サッカー）',c:'#22a05a'},
+  {name:'オレンジ（バスケ）',c:'#f07020'},
+  {name:'むらさき（空手）',c:'#8b5cf6'},
+  {name:'ピンク（しゅくだい）',c:'#ec4899'},
+  {name:'きいろ（あそび）',c:'#eab308'},
+  {name:'グレー（その他）',c:'#64748b'},
+];
+function savePlans(){try{localStorage.setItem('maiken_plans_v1',JSON.stringify(plans))}catch(e){}queuePlanSync()}
+let planSyncTimer=null;
+function queuePlanSync(){
+  if(!cloud.url)return;
+  clearTimeout(planSyncTimer);
+  planSyncTimer=setTimeout(pushPlans,1500);
+}
+async function pushPlans(){
+  if(!cloud.url)return;
+  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans})})}catch(e){}
+}
+async function fetchPlans(){
+  if(!cloud.url)return;
+  try{
+    const sep=cloud.url.includes('?')?'&':'?';
+    const r=await fetch(cloud.url+sep+'action=plans&secret='+encodeURIComponent(SYNC_SECRET));
+    const j=await r.json();
+    if(j&&j.plans){plans=j.plans;try{localStorage.setItem('maiken_plans_v1',JSON.stringify(plans))}catch(e){}if(tab==='schedule')render();}
+  }catch(e){}
+}
+// time helpers
+function toMin(hhmm){const[h,m]=hhmm.split(':').map(Number);return h*60+m}
+function toHHMM(min){const h=Math.floor(min/60),m=min%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
+function timeOptions(){let o='';for(let m=0;m<24*60;m+=15)o+=`<option value="${toHHMM(m)}">${toHHMM(m)}</option>`;return o}
 function saveCheers(){try{localStorage.setItem('maiken_cheers_v1',JSON.stringify(cheers))}catch(e){}}
 async function fetchCheers(){
   if(!cloud.url)return;
@@ -411,6 +475,42 @@ window.act={
   },
   closeModal(){editing=null;renderOverlay()},
   setRepDays(n){repDays=n;render()},
+  /* schedule */
+  newPlan(day,startMin){
+    const sm=startMin!=null?startMin:9*60;
+    schView={id:'p'+Date.now(),day:day!=null?day:new Date().getDay(),start:toHHMM(sm),end:toHHMM(Math.min(sm+60,23*60+45)),title:'',place:'',memo:'',color:PLAN_COLORS[0].c,_isNew:true};
+    renderPlanModal();
+  },
+  editPlan(id){
+    const p=plans.find(x=>x.id===id);if(!p)return;
+    schView=Object.assign({},p);renderPlanModal();
+  },
+  planField(k,v){if(schView)schView[k]=v},
+  planColor(c){if(schView){schView.color=c;renderPlanModal()}},
+  savePlan(){
+    const g=id=>document.getElementById(id);
+    schView.title=g('p-title').value.trim();
+    schView.day=Number(g('p-day').value);
+    schView.start=g('p-start').value;
+    schView.end=g('p-end').value;
+    schView.place=g('p-place').value.trim();
+    schView.memo=g('p-memo').value.trim();
+    if(!schView.title){alert('タイトルを いれてね');return}
+    if(toMin(schView.end)<=toMin(schView.start)){alert('おわりの じかんは はじまりより あとにしてね');return}
+    const isNew=schView._isNew;delete schView._isNew;
+    if(isNew)plans.push(schView);
+    else{const i=plans.findIndex(x=>x.id===schView.id);if(i>=0)plans[i]=schView}
+    savePlans();schView=null;document.getElementById('overlay').innerHTML='';render();
+  },
+  deletePlan(){
+    if(!schView||schView._isNew){schView=null;document.getElementById('overlay').innerHTML='';return}
+    if(!confirm('この よていを けしますか？'))return;
+    plans=plans.filter(x=>x.id!==schView.id);
+    savePlans();schView=null;document.getElementById('overlay').innerHTML='';render();
+  },
+  closePlan(){schView=null;document.getElementById('overlay').innerHTML=''},
+  copyPrevWeekNote(){alert('この週ビューは「ふだんの1週間」のテンプレートです。毎週くりかえし使えます。')},
+
   openCheers(){
     const list=cheers.length?cheers.map(c=>`<div class="cheer-list-item"><span class="cs">${esc(c.sender)}</span><span class="ct2">${esc(c.time||'')}</span><div>${esc(c.message)}</div></div>`).join(''):'<div class="empty">まだ おうえんは ないよ</div>';
     document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeCheers()"><div class="modal" onclick="event.stopPropagation()">
@@ -623,6 +723,7 @@ function render(){renderHeader();renderTabs();
   const v=document.getElementById('view');
   if(tab==='today')v.innerHTML=viewToday();
   else if(tab==='log')v.innerHTML=viewLog();
+  else if(tab==='schedule')v.innerHTML=viewSchedule();
   else if(tab==='report')v.innerHTML=viewReport();
   else v.innerHTML=viewSettings();
   updateChip();
@@ -642,7 +743,7 @@ function renderHeader(){
 }
 
 function renderTabs(){
-  const defs=[['today','✅','きょう'],['log','📈','きろく'],['report','📋','レポート'],['settings','⚙️','せってい']];
+  const defs=[['today','✅','きょう'],['schedule','🗓','よてい'],['log','📈','きろく'],['report','📋','レポート'],['settings','⚙️','せってい']];
   document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>
     `<button class="tab ${tab===k?'on':''}" onclick="act.setTab('${k}')"><span class="ico">${i}</span>${l}</button>`).join('');
 }
@@ -875,6 +976,87 @@ function buildInsights(a){
   }
   if(ins.length===0)ins.push(['idea','🌱','まだ示唆を出すにはデータが少なめ。まずは1〜2週間 記録を続けてみましょう。']);
   return ins;
+}
+
+function viewSchedule(){
+  const wn=['日','月','火','水','木','金','土'];
+  const todayDow=new Date().getDay();
+  const START=6, END=22; // 表示する時間帯 6:00-22:00
+  const slotH=14; // px / 15min
+  const rows=(END-START)*4;
+
+  // 時間目盛り列
+  let timeCol='<div class="gcol timecol"><div class="gh corner">時</div>';
+  for(let r=0;r<rows;r++){
+    const min=START*60+r*15;const isHour=min%60===0;
+    timeCol+=`<div class="gtime ${isHour?'hour':''}">${isHour?toHHMM(min):''}</div>`;
+  }
+  timeCol+='</div>';
+
+  // 各曜日の列
+  let cols='';
+  for(let d=0;d<7;d++){
+    let cells='';
+    for(let r=0;r<rows;r++){
+      const min=START*60+r*15;const isHour=min%60===0;
+      cells+=`<div class="gcell ${isHour?'hour':''}" onclick="act.newPlan(${d},${min})"></div>`;
+    }
+    // この曜日の予定を重ねる
+    let evs='';
+    plans.filter(p=>p.day===d).forEach(p=>{
+      const s=toMin(p.start),e=toMin(p.end);
+      const top=(s-START*60)/15*slotH;
+      const h=Math.max((e-s)/15*slotH-2,12);
+      const col=p.color||'#64748b';
+      evs+=`<div class="ev" style="top:${top}px;height:${h}px;background:${col}" onclick="event.stopPropagation();act.editPlan('${p.id}')">
+        <div class="et">${esc(p.title)}</div>
+        ${h>26&&p.place?`<div class="ep">📍${esc(p.place)}</div>`:''}
+        ${h>40?`<div class="ep">${esc(p.start)}-${esc(p.end)}</div>`:''}
+      </div>`;
+    });
+    cols+=`<div class="gcol"><div class="gh ${d===todayDow?'today':''}">${wn[d]}</div><div style="position:relative">${cells}${evs}</div></div>`;
+  }
+
+  // 色の凡例
+  const legend=PLAN_COLORS.map(c=>`<div class="leg"><span class="ld" style="background:${c.c}"></span>${esc(c.name)}</div>`).join('');
+
+  return `
+    <div class="sch-toolbar">
+      <div class="st-title">🗓 1しゅうかんの よてい</div>
+      <button class="sch-addbtn" onclick="act.newPlan()">＋ よていを ついか</button>
+    </div>
+    <div class="sch-legend">${legend}</div>
+    <div class="grid-wrap"><div class="grid">${timeCol}${cols}</div></div>
+    <div class="rep-note" style="margin-top:10px;color:#cbd5e1">マスを タップ すると その時間で 新規さくせい。よていを タップ すると へんしゅう。学校・習い事・しゅくだい・あそびを 色わけして 1週間を 見える化しよう。</div>
+  `;
+}
+
+function renderPlanModal(){
+  if(!schView){document.getElementById('overlay').innerHTML='';return}
+  const wn=['日曜','月曜','火曜','水曜','木曜','金曜','土曜'];
+  const dayOpts=wn.map((w,i)=>`<option value="${i}" ${schView.day===i?'selected':''}>${w}</option>`).join('');
+  const tOpts=timeOptions();
+  const startSel=tOpts.replace(`value="${schView.start}"`,`value="${schView.start}" selected`);
+  const endSel=tOpts.replace(`value="${schView.end}"`,`value="${schView.end}" selected`);
+  const colorRow=PLAN_COLORS.map(c=>`<div class="color-dot ${schView.color===c.c?'on':''}" style="background:${c.c}" onclick="act.planColor('${c.c}')" title="${esc(c.name)}"></div>`).join('');
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closePlan()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>${schView._isNew?'よていを ついか':'よていを へんしゅう'}</h3>
+      <div class="f-row"><label>タイトル</label><input id="p-title" value="${esc(schView.title)}" placeholder="例: サッカースクール / こくご / あそび"></div>
+      <div class="f-row"><label>ようび</label><select id="p-day" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${dayOpts}</select></div>
+      <div class="f-inline">
+        <div class="f-row"><label>はじまり</label><select id="p-start" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${startSel}</select></div>
+        <div class="f-row"><label>おわり</label><select id="p-end" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${endSel}</select></div>
+      </div>
+      <div class="f-row"><label>ばしょ（任意）</label><input id="p-place" value="${esc(schView.place||'')}" placeholder="例: ○○小学校 / たいいくかん"></div>
+      <div class="f-row"><label>メモ（任意）</label><input id="p-memo" value="${esc(schView.memo||'')}" placeholder="例: もちもの・コーチ名など"></div>
+      <div class="f-row"><label>いろ</label><div class="color-row">${colorRow}</div></div>
+      <div class="m-btns">
+        ${schView._isNew?'':'<button class="m-btn m-cancel" style="background:#fee2e2;color:#dc2626" onclick="act.deletePlan()">けす</button>'}
+        <button class="m-btn m-cancel" onclick="act.closePlan()">やめる</button>
+        <button class="m-btn m-save" onclick="act.savePlan()">ほぞん</button>
+      </div>
+    </div></div>`;
 }
 
 function viewReport(){
@@ -1148,7 +1330,7 @@ function renderOverlay(){
 }
 
 render();
-if(cloud.url){autoPull();fetchCheers();}
+if(cloud.url){autoPull();fetchCheers();fetchPlans();}
 </script>
 </body>
 </html>
