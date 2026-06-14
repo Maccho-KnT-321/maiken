@@ -127,10 +127,12 @@ svg.line-chart{width:100%;height:160px}
 .gh.today{background:#6366f1}
 .gh.corner{left:0;z-index:4}
 .gcol{position:relative;border-left:1px solid #eef;min-height:100%}
-.gtime{font-size:9px;color:#94a3b8;text-align:right;padding-right:4px;height:14px;line-height:14px;border-top:1px solid #f1f5f9}
-.gtime.hour{color:#475569;font-weight:700;border-top:1px solid #e2e8f0}
-.gcell{height:14px;border-top:1px solid #f6f7fb;cursor:pointer}
-.gcell.hour{border-top:1px solid #e8ebf3}
+.gtime{font-size:9px;color:#94a3b8;text-align:right;padding-right:4px;height:5px;line-height:5px;border-top:none}
+.gtime.hour{color:#475569;font-weight:700;border-top:1px solid #cbd5e1;height:5px;line-height:1px}
+.gtime.half{border-top:1px solid #eef0f5}
+.gcell{height:5px;border-top:none;cursor:pointer}
+.gcell.hour{border-top:1px solid #d8def0}
+.gcell.half{border-top:1px solid #f1f3f9}
 .gcell:active{background:#eef2ff}
 .timecol{position:sticky;left:0;z-index:2;background:rgba(255,255,255,.96)}
 .ev{position:absolute;left:2px;right:2px;border-radius:6px;padding:2px 5px;font-size:10px;color:#fff;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2);line-height:1.25}
@@ -145,6 +147,9 @@ svg.line-chart{width:100%;height:160px}
 .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#cbd5e1;font-weight:700}
 .leg .ld{width:12px;height:12px;border-radius:3px}
 .copyday-btn{border:none;font-family:inherit;font-weight:700;font-size:11px;border-radius:8px;padding:6px 10px;background:#e2e8f0;color:#475569;cursor:pointer}
+.day-toggle-row{display:flex;gap:6px}
+.day-toggle{flex:1;border:2px solid #e2e8f0;background:#f8fafc;color:#94a3b8;font-family:inherit;font-weight:900;font-size:15px;border-radius:10px;padding:10px 0;cursor:pointer}
+.day-toggle.on{background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;border-color:#6366f1}
 
 /* cheer */
 .cheer-banner{background:linear-gradient(120deg,#ec4899,#f97316);border-radius:16px;padding:14px 16px;margin-top:14px;box-shadow:0 8px 24px rgba(236,72,153,.35);cursor:pointer}
@@ -323,7 +328,7 @@ async function fetchPlans(){
 // time helpers
 function toMin(hhmm){const[h,m]=hhmm.split(':').map(Number);return h*60+m}
 function toHHMM(min){const h=Math.floor(min/60),m=min%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
-function timeOptions(){let o='';for(let m=0;m<24*60;m+=15)o+=`<option value="${toHHMM(m)}">${toHHMM(m)}</option>`;return o}
+function timeOptions(){let o='';for(let m=0;m<24*60;m+=5)o+=`<option value="${toHHMM(m)}">${toHHMM(m)}</option>`;return o}
 function saveCheers(){try{localStorage.setItem('maiken_cheers_v1',JSON.stringify(cheers))}catch(e){}}
 async function fetchCheers(){
   if(!cloud.url)return;
@@ -481,9 +486,18 @@ window.act={
   setRepDays(n){repDays=n;render()},
   /* schedule */
   setWeekStart(v){weekStart=Number(v);saveWeekStart();render();},
+  toggleDay(d){
+    if(!schView)return;
+    schView._days=schView._days||[schView.day];
+    const i=schView._days.indexOf(d);
+    if(i>=0){if(schView._days.length>1)schView._days.splice(i,1);}
+    else schView._days.push(d);
+    renderPlanModal();
+  },
   newPlan(day,startMin){
     const sm=startMin!=null?startMin:9*60;
-    schView={id:'p'+Date.now(),day:day!=null?day:new Date().getDay(),start:toHHMM(sm),end:toHHMM(Math.min(sm+60,23*60+45)),title:'',place:'',memo:'',color:PLAN_COLORS[0].c,_isNew:true};
+    const d0=day!=null?day:new Date().getDay();
+    schView={id:'p'+Date.now(),day:d0,start:toHHMM(sm),end:toHHMM(Math.min(sm+60,23*60+45)),title:'',place:'',memo:'',color:PLAN_COLORS[0].c,_isNew:true,_days:[d0]};
     renderPlanModal();
   },
   editPlan(id){
@@ -495,16 +509,25 @@ window.act={
   savePlan(){
     const g=id=>document.getElementById(id);
     schView.title=g('p-title').value.trim();
-    schView.day=Number(g('p-day').value);
     schView.start=g('p-start').value;
     schView.end=g('p-end').value;
     schView.place=g('p-place').value.trim();
     schView.memo=g('p-memo').value.trim();
     if(!schView.title){alert('タイトルを いれてね');return}
     if(toMin(schView.end)<=toMin(schView.start)){alert('おわりの じかんは はじまりより あとにしてね');return}
-    const isNew=schView._isNew;delete schView._isNew;
-    if(isNew)plans.push(schView);
-    else{const i=plans.findIndex(x=>x.id===schView.id);if(i>=0)plans[i]=schView}
+    const isNew=schView._isNew;
+    if(isNew){
+      // 選んだ曜日それぞれに個別の予定として作成（あとで1つずつ編集可）
+      const ds=(schView._days&&schView._days.length)?schView._days:[schView.day];
+      ds.forEach((d,k)=>{
+        plans.push({id:'p'+Date.now()+'_'+d+k,day:d,start:schView.start,end:schView.end,title:schView.title,place:schView.place,memo:schView.memo,color:schView.color});
+      });
+    }else{
+      schView.day=Number(g('p-day').value);
+      const i=plans.findIndex(x=>x.id===schView.id);
+      const clean={id:schView.id,day:schView.day,start:schView.start,end:schView.end,title:schView.title,place:schView.place,memo:schView.memo,color:schView.color};
+      if(i>=0)plans[i]=clean;
+    }
     savePlans();schView=null;document.getElementById('overlay').innerHTML='';render();
   },
   deletePlan(){
@@ -987,14 +1010,15 @@ function viewSchedule(){
   const wn=['日','月','火','水','木','金','土'];
   const todayDow=new Date().getDay();
   const START=6, END=22; // 表示する時間帯 6:00-22:00
-  const slotH=14; // px / 15min
-  const rows=(END-START)*4;
+  const STEP=5; // 分
+  const slotH=5; // px / 5min
+  const rows=(END-START)*60/STEP;
 
   // 時間目盛り列
   let timeCol='<div class="gcol timecol"><div class="gh corner">時</div>';
   for(let r=0;r<rows;r++){
-    const min=START*60+r*15;const isHour=min%60===0;
-    timeCol+=`<div class="gtime ${isHour?'hour':''}">${isHour?toHHMM(min):''}</div>`;
+    const min=START*60+r*STEP;const isHour=min%60===0;const isHalf=min%30===0;
+    timeCol+=`<div class="gtime ${isHour?'hour':isHalf?'half':''}">${isHour?toHHMM(min):''}</div>`;
   }
   timeCol+='</div>';
 
@@ -1004,15 +1028,15 @@ function viewSchedule(){
     const d=(weekStart+idx)%7;
     let cells='';
     for(let r=0;r<rows;r++){
-      const min=START*60+r*15;const isHour=min%60===0;
-      cells+=`<div class="gcell ${isHour?'hour':''}" onclick="act.newPlan(${d},${min})"></div>`;
+      const min=START*60+r*STEP;const isHour=min%60===0;const isHalf=min%30===0;
+      cells+=`<div class="gcell ${isHour?'hour':isHalf?'half':''}" onclick="act.newPlan(${d},${min})"></div>`;
     }
     // この曜日の予定を重ねる
     let evs='';
     plans.filter(p=>p.day===d).forEach(p=>{
       const s=toMin(p.start),e=toMin(p.end);
-      const top=(s-START*60)/15*slotH;
-      const h=Math.max((e-s)/15*slotH-2,12);
+      const top=(s-START*60)/STEP*slotH;
+      const h=Math.max((e-s)/STEP*slotH-2,12);
       const col=p.color||'#64748b';
       evs+=`<div class="ev" style="top:${top}px;height:${h}px;background:${col}" onclick="event.stopPropagation();act.editPlan('${p.id}')">
         <div class="et">${esc(p.title)}</div>
@@ -1038,14 +1062,17 @@ function viewSchedule(){
     </div>
     <div class="sch-legend">${legend}</div>
     <div class="grid-wrap"><div class="grid">${timeCol}${cols}</div></div>
-    <div class="rep-note" style="margin-top:10px;color:#cbd5e1">マスを タップ すると その時間で 新規さくせい。よていを タップ すると へんしゅう。学校・習い事・しゅくだい・あそびを 色わけして 1週間を 見える化しよう。</div>
+    <div class="rep-note" style="margin-top:10px;color:#cbd5e1">マスを タップ すると その時間で 新規さくせい（曜日は複数えらべます）。よていを タップ すると 1つずつ へんしゅう。学校・習い事・しゅくだい・あそびを 色わけして 1週間を 見える化しよう。</div>
   `;
 }
 
 function renderPlanModal(){
   if(!schView){document.getElementById('overlay').innerHTML='';return}
   const wn=['日曜','月曜','火曜','水曜','木曜','金曜','土曜'];
+  const wnShort=['日','月','火','水','木','金','土'];
   const dayOpts=wn.map((w,i)=>`<option value="${i}" ${schView.day===i?'selected':''}>${w}</option>`).join('');
+  const selDays=schView._days||[schView.day];
+  const dayToggle=wnShort.map((w,i)=>`<button type="button" class="day-toggle ${selDays.indexOf(i)>=0?'on':''}" onclick="act.toggleDay(${i})">${w}</button>`).join('');
   const tOpts=timeOptions();
   const startSel=tOpts.replace(`value="${schView.start}"`,`value="${schView.start}" selected`);
   const endSel=tOpts.replace(`value="${schView.end}"`,`value="${schView.end}" selected`);
@@ -1054,7 +1081,9 @@ function renderPlanModal(){
     <div class="modal" onclick="event.stopPropagation()">
       <h3>${schView._isNew?'よていを ついか':'よていを へんしゅう'}</h3>
       <div class="f-row"><label>タイトル</label><input id="p-title" value="${esc(schView.title)}" placeholder="例: サッカースクール / こくご / あそび"></div>
-      <div class="f-row"><label>ようび</label><select id="p-day" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${dayOpts}</select></div>
+      ${schView._isNew
+        ? `<div class="f-row"><label>ようび（ふくすう えらべます）</label><div class="day-toggle-row">${dayToggle}</div></div>`
+        : `<div class="f-row"><label>ようび</label><select id="p-day" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${dayOpts}</select></div>`}
       <div class="f-inline">
         <div class="f-row"><label>はじまり</label><select id="p-start" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${startSel}</select></div>
         <div class="f-row"><label>おわり</label><select id="p-end" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${endSel}</select></div>
