@@ -116,6 +116,8 @@ let tab='home';
 let days={};          // analyzePeriod が参照
 let tasksDef={morning:[],evening:[]};
 let cheers=[];
+let plans=[];
+const PLAN_COLORS_NAME={'#3b82f6':'がっこう','#22a05a':'サッカー','#f07020':'バスケ','#8b5cf6':'からて','#ec4899':'しゅくだい','#eab308':'あそび','#64748b':'そのた'};
 let repDays=30;
 let lastFetch=0;
 
@@ -126,16 +128,18 @@ const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','
 const today=ymd();
 function allTasks(){return [].concat(tasksDef.morning||[],tasksDef.evening||[])}
 function dayDone(d){const v=days[d];return v?Object.keys(v.checks||{}).length:0}
+function toMin(hhmm){const[h,m]=hhmm.split(':').map(Number);return h*60+m}
 
 function api(action){const sep=GAS_URL.includes('?')?'&':'?';return fetch(GAS_URL+sep+'action='+action+'&secret='+encodeURIComponent(SECRET)).then(r=>r.json())}
 function post(obj){return fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(Object.assign({secret:SECRET},obj))}).then(r=>r.json())}
 
 async function loadAll(silent){
   try{
-    const [pull,ch]=await Promise.all([api('pull'),api('cheers')]);
+    const [pull,ch,pl]=await Promise.all([api('pull'),api('cheers'),api('plans')]);
     if(pull&&pull.days)days=pull.days;
     if(pull&&pull.tasks)tasksDef=pull.tasks;
     if(ch&&ch.cheers)cheers=ch.cheers;
+    if(pl&&pl.plans)plans=pl.plans;
     lastFetch=Date.now();
     render();
   }catch(e){
@@ -315,6 +319,36 @@ function render(){
 }
 
 /* ===== ホーム ===== */
+function scheduleCard(){
+  if(!plans||!plans.length)return '';
+  const wn=['日','月','火','水','木','金','土'];
+  const todayDow=new Date().getDay();
+  let html='<div class="card"><div class="card-title">🗓 こんしゅうの よてい</div>';
+  // 今日を先頭に、7日ぶんを順に
+  for(let off=0;off<7;off++){
+    const d=(todayDow+off)%7;
+    const dayPlans=plans.filter(p=>p.day===d).sort((a,b)=>toMin(a.start)-toMin(b.start));
+    if(!dayPlans.length)continue;
+    const isToday=off===0;
+    html+=`<div style="margin-bottom:12px">
+      <div style="font-size:14px;font-weight:900;color:${isToday?'#ec4899':'#6b7280'};margin-bottom:6px">${wn[d]}よう日${isToday?'（きょう）':''}</div>`;
+    dayPlans.forEach(p=>{
+      const col=p.color||'#64748b';
+      html+=`<div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+        <div style="width:6px;height:34px;border-radius:3px;background:${col};flex-shrink:0"></div>
+        <div style="font-size:13px;color:#9ca3af;font-weight:700;width:90px;flex-shrink:0">${esc(p.start)}-${esc(p.end)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:16px;font-weight:700;color:#374151">${esc(p.title)}</div>
+          ${p.place?`<div style="font-size:12px;color:#9ca3af">📍${esc(p.place)}</div>`:''}
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  return html;
+}
+
 function viewHome(){
   const total=Math.max(allTasks().length,1);
   // 今日
@@ -373,6 +407,7 @@ function viewHome(){
     </div>
     ${recordHtml}
     <div class="card"><div class="card-title">📔 さいきん できたこと</div>${diaryHtml}</div>
+    ${scheduleCard()}
     <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>
   `;
 }
