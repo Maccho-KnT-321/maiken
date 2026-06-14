@@ -117,6 +117,36 @@ svg.line-chart{width:100%;height:160px}
 .io-btn.ex{background:linear-gradient(90deg,#fb923c,#f43f5e);color:#fff}
 .io-btn.im{background:#e0e7ff;color:#4338ca}
 
+/* report */
+.rep-head{background:linear-gradient(120deg,#0ea5e9,#6366f1);border-radius:16px;padding:16px;color:#fff;margin-top:16px}
+.rep-head .rt{font-size:17px;font-weight:900}
+.rep-head .rs{font-size:11px;opacity:.85;margin-top:2px}
+.rep-period{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.rep-pill{border:none;font-family:inherit;font-weight:700;font-size:12px;border-radius:99px;padding:7px 14px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff}
+.rep-pill.on{background:#fff;color:#4338ca}
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.kpi{background:rgba(255,255,255,.96);border-radius:16px;padding:13px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.kpi .kl{font-size:10px;color:#64748b;font-weight:700}
+.kpi .kv{font-size:24px;font-weight:900;margin-top:2px}
+.kpi .kt{font-size:10px;font-weight:700;margin-top:2px}
+.kpi .kt.up{color:#059669}.kpi .kt.dn{color:#dc2626}.kpi .kt.fl{color:#94a3b8}
+.insight{background:rgba(255,255,255,.96);border-radius:14px;padding:14px;margin-top:12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.insight .it{font-size:13px;font-weight:900;color:#334155;margin-bottom:8px}
+.ins-item{display:flex;gap:8px;font-size:12px;line-height:1.65;padding:5px 0;border-bottom:1px solid #f1f5f9}
+.ins-item:last-child{border:none}
+.ins-ico{flex-shrink:0;font-size:15px}
+.ins-good{color:#059669;font-weight:700}.ins-warn{color:#d97706;font-weight:700}.ins-idea{color:#7c3aed;font-weight:700}
+.rep-btns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.rep-btn{border:none;font-family:inherit;font-weight:900;font-size:14px;border-radius:14px;padding:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.rep-btn.print{background:linear-gradient(90deg,#0ea5e9,#6366f1);color:#fff}
+.rep-btn.ai{background:linear-gradient(90deg,#7c3aed,#db2777);color:#fff}
+.rep-btn.sub{background:#e2e8f0;color:#475569}
+.rep-note{font-size:11px;color:#cbd5e1;line-height:1.7;margin-top:10px}
+.mini-bars{display:flex;align-items:flex-end;gap:5px;height:90px;margin-top:8px}
+.mini-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
+.mini-bar{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#38bdf8,#6366f1);min-height:2px}
+.mini-d{font-size:8px;color:#94a3b8}
+
 /* tools / timer / howto */
 .t-tools{display:flex;gap:6px;margin-top:7px}
 .tool-btn{border:none;font-family:inherit;font-weight:900;font-size:10px;border-radius:99px;padding:5px 11px;cursor:pointer}
@@ -215,6 +245,7 @@ let days=load(LS_DAYS,{});
 let tab='today';
 let editing=null;
 let pendingImg;          // 編集中の画像（undefined=変更なし, null=削除, 文字列=新画像）
+let repDays=30;          // レポート対象期間
 const LS_IMGS='maiken_imgs_v1';
 let imgs=load(LS_IMGS,{});
 function saveImgs(){try{localStorage.setItem(LS_IMGS,JSON.stringify(imgs))}catch(e){alert('がぞうの ほぞんできる りょうが いっぱいです。せっていで古い画像を削除してください')}}
@@ -354,6 +385,23 @@ window.act={
     saveTasks();editing=null;renderOverlay();render();
   },
   closeModal(){editing=null;renderOverlay()},
+  setRepDays(n){repDays=n;render()},
+  aiReport(){
+    const txt=buildAiPrompt(analyzePeriod(repDays));
+    navigator.clipboard.writeText(txt).then(
+      ()=>alert('✅ コピーしました！\n\nChatGPTやClaudeなどのAIに貼り付けると、メニューの進化やレベルアップの提案が受け取れます。'),
+      ()=>{ // クリップボード不可時はテキスト表示
+        const o=document.getElementById('overlay');
+        o.innerHTML=`<div class="modal-bg" onclick="this.remove()"><div class="modal" onclick="event.stopPropagation()">
+          <h3>AIに相談する文章</h3>
+          <textarea readonly style="width:100%;height:300px;font-size:11px;border:2px solid #e2e8f0;border-radius:10px;padding:8px;font-family:inherit">${esc(txt)}</textarea>
+          <div class="rep-note" style="color:#64748b">長押し or 選択してコピーしてください</div>
+          <div class="m-btns"><button class="m-btn m-cancel" onclick="document.getElementById('overlay').innerHTML=''">とじる</button></div>
+        </div></div>`;
+      }
+    );
+  },
+  printReport(){ openPrintReport(analyzePeriod(repDays)); },
   openTimer(id){
     const t=allTasks().find(x=>x.id===id);if(!t)return;
     stopTimerIv();
@@ -540,6 +588,7 @@ function render(){renderHeader();renderTabs();
   const v=document.getElementById('view');
   if(tab==='today')v.innerHTML=viewToday();
   else if(tab==='log')v.innerHTML=viewLog();
+  else if(tab==='report')v.innerHTML=viewReport();
   else v.innerHTML=viewSettings();
   updateChip();
 }
@@ -558,7 +607,7 @@ function renderHeader(){
 }
 
 function renderTabs(){
-  const defs=[['today','✅','きょう'],['log','📈','きろく'],['settings','⚙️','せってい']];
+  const defs=[['today','✅','きょう'],['log','📈','きろく'],['report','📋','レポート'],['settings','⚙️','せってい']];
   document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>
     `<button class="tab ${tab===k?'on':''}" onclick="act.setTab('${k}')"><span class="ico">${i}</span>${l}</button>`).join('');
 }
@@ -679,6 +728,306 @@ function viewLog(){
 }
 
 /* ── settings view ── */
+/* ============================================
+ *  レポート機能（記録 → 示唆）
+ * ============================================ */
+function analyzePeriod(nDays){
+  const all=allTasks();
+  const start=addDays(today,-(nDays-1));
+  // 対象日のリスト
+  const dates=[];for(let i=nDays-1;i>=0;i--)dates.push(addDays(today,-i));
+  const recs=dates.map(d=>({d,v:days[d]}));
+
+  const activeDays=recs.filter(r=>r.v&&Object.keys(r.v.checks||{}).length>0).length;
+  const totalPossible=nDays*all.length;
+  let totalDone=0;
+  recs.forEach(r=>{if(r.v)totalDone+=Object.keys(r.v.checks||{}).length});
+  const avgRate=totalPossible?totalDone/totalPossible:0;
+  const activeRate=nDays?activeDays/nDays:0;
+
+  // メニュー別 実施回数・気持ち集計
+  const per={};
+  all.forEach(t=>per[t.id]={task:t,done:0,love:0,ok:0,meh:0});
+  recs.forEach(r=>{
+    if(!r.v)return;
+    Object.keys(r.v.checks||{}).forEach(id=>{if(per[id])per[id].done++});
+    Object.entries(r.v.feels||{}).forEach(([id,f])=>{if(per[id]&&f)per[id][f]++});
+  });
+  const perArr=Object.values(per);
+
+  // 前半 vs 後半（伸び）
+  const half=Math.floor(nDays/2);
+  const firstHalf=recs.slice(0,half), secondHalf=recs.slice(half);
+  const sum=arr=>arr.reduce((a,r)=>a+(r.v?Object.keys(r.v.checks||{}).length:0),0);
+  const fhAvg=firstHalf.length?sum(firstHalf)/firstHalf.length:0;
+  const shAvg=secondHalf.length?sum(secondHalf)/secondHalf.length:0;
+  const trend=shAvg-fhAvg;
+
+  // 記録系（リフティング等）の伸び
+  const recTasks=all.filter(t=>t.recordLabel);
+  const recordProgress=recTasks.map(t=>{
+    const pts=recs.filter(r=>r.v&&r.v.records&&r.v.records[t.id]!=null).map(r=>({d:r.d,v:r.v.records[t.id]}));
+    if(pts.length<1)return{task:t,pts:[],first:null,last:null,best:null};
+    return{task:t,pts,first:pts[0].v,last:pts[pts.length-1].v,best:Math.max(...pts.map(p=>p.v))};
+  });
+
+  // 曜日別達成
+  const dow=[0,0,0,0,0,0,0],dowCnt=[0,0,0,0,0,0,0];
+  recs.forEach(r=>{
+    const [y,m,dd]=r.d.split('-').map(Number);
+    const w=new Date(y,m-1,dd).getDay();
+    dowCnt[w]++;
+    if(r.v)dow[w]+=Object.keys(r.v.checks||{}).length;
+  });
+  const dowAvg=dow.map((s,i)=>dowCnt[i]?s/dowCnt[i]:0);
+
+  return{nDays,start,end:today,dates,recs,activeDays,activeRate,totalDone,avgRate,perArr,trend,fhAvg,shAvg,recordProgress,dowAvg,all};
+}
+
+function buildInsights(a){
+  const ins=[];
+  // 継続性
+  if(a.activeRate>=0.85)ins.push(['good','🔥',`${a.nDays}日のうち${a.activeDays}日 実施。習慣がしっかり定着しています。`]);
+  else if(a.activeRate>=0.5)ins.push(['warn','📌',`実施は${a.activeDays}/${a.nDays}日。「ゼロの日を作らない」を意識すると、もう一段定着します。`]);
+  else if(a.activeDays>0)ins.push(['warn','💡',`実施が${a.activeDays}/${a.nDays}日とまばら。メニューを減らすか、朝1つ・夜1つの「最小セット」から立て直すのが有効です。`]);
+
+  // 伸び
+  if(a.trend>0.5)ins.push(['good','📈',`期間後半は前半より1日あたり+${a.trend.toFixed(1)}メニュー増加。勢いがついています。`]);
+  else if(a.trend<-0.5)ins.push(['warn','📉',`後半に失速（1日あたり${a.trend.toFixed(1)}）。飽きのサインかも。メニュー入れ替えの検討時期です。`]);
+
+  // 記録の伸び
+  a.recordProgress.forEach(rp=>{
+    if(rp.pts.length>=2){
+      const diff=rp.last-rp.first;
+      if(diff>0)ins.push(['good','🏅',`「${rp.task.title}」の記録が ${rp.first}→${rp.last}（ベスト${rp.best}）。明確に伸びています。`]);
+      else if(diff<0)ins.push(['warn','🤔',`「${rp.task.title}」の記録が伸び悩み（ベスト${rp.best}）。やり方の図解を見直すか、難易度を一段変えると良いかも。`]);
+    }
+  });
+
+  // 熱中シグナル（love多い）
+  const loved=a.perArr.filter(p=>p.love>0).sort((x,y)=>y.love-x.love);
+  if(loved.length){
+    const top=loved[0];
+    ins.push(['idea','😆',`「${top.task.title}」に😆が${top.love}回。ここが投資先候補。時間を増やす／レベルアップ版に進化させると伸びます。`]);
+  }
+  // いやがるシグナル（meh多い）
+  const disliked=a.perArr.filter(p=>p.meh>=2&&p.meh>=p.love).sort((x,y)=>y.meh-x.meh);
+  if(disliked.length){
+    const top=disliked[0];
+    ins.push(['warn','😮‍💨',`「${top.task.title}」に😮‍💨が${top.meh}回。やり方を変える・別メニューに置き換える・一旦休むのいずれかを検討。`]);
+  }
+  // ほぼ手付かずのメニュー
+  const neglected=a.perArr.filter(p=>p.done<=Math.max(1,a.nDays*0.1));
+  if(neglected.length&&a.activeDays>3){
+    ins.push(['warn','⚠️',`ほとんど実施されていないメニュー：${neglected.map(p=>p.task.title).join('、')}。続かない理由（難しい/つまらない/時間が合わない）を本人に聞いてみましょう。`]);
+  }
+  // 曜日の谷
+  const minDow=a.dowAvg.indexOf(Math.min(...a.dowAvg.filter((_,i)=>a.dowAvg[i]>=0)));
+  const wn=['日','月','火','水','木','金','土'];
+  const maxAvg=Math.max(...a.dowAvg);
+  if(maxAvg>0&&a.dowAvg[minDow]<maxAvg*0.5){
+    ins.push(['idea','🗓',`${wn[minDow]}曜の達成が低め。習い事や疲れと重なっていないか確認し、その曜日だけ軽いメニューにするのも手です。`]);
+  }
+  if(ins.length===0)ins.push(['idea','🌱','まだ示唆を出すにはデータが少なめ。まずは1〜2週間 記録を続けてみましょう。']);
+  return ins;
+}
+
+function viewReport(){
+  const a=analyzePeriod(repDays);
+  const pct=Math.round(a.avgRate*100);
+  const actPct=Math.round(a.activeRate*100);
+  const trendTxt=a.trend>0.2?['up','▲ 上昇中']:a.trend<-0.2?['dn','▼ 失速ぎみ']:['fl','→ 横ばい'];
+  const ins=buildInsights(a);
+
+  // mini bars（直近14日 or 期間が短ければその日数）
+  const showN=Math.min(a.nDays,14);
+  const barDays=a.recs.slice(-showN);
+  const maxC=Math.max(a.all.length,1);
+  const bars=barDays.map(r=>{
+    const c=r.v?Object.keys(r.v.checks||{}).length:0;
+    return `<div class="mini-col"><div class="mini-bar" style="height:${c/maxC*100}%"></div><div class="mini-d">${+r.d.slice(8)}</div></div>`;
+  }).join('');
+
+  const insHtml=ins.map(([type,ico,txt])=>{
+    const cls=type==='good'?'ins-good':type==='warn'?'ins-warn':'ins-idea';
+    return `<div class="ins-item"><span class="ins-ico">${ico}</span><span><span class="${cls}">●</span> ${esc(txt)}</span></div>`;
+  }).join('');
+
+  const periodBtn=(n,l)=>`<button class="rep-pill ${repDays===n?'on':''}" onclick="act.setRepDays(${n})">${l}</button>`;
+
+  return `
+    <div class="rep-head">
+      <div class="rt">📋 つみかさねレポート</div>
+      <div class="rs">${fmtJp(a.start)} 〜 ${fmtJp(a.end)}</div>
+      <div class="rep-period">${periodBtn(7,'1週間')}${periodBtn(30,'1ヶ月')}${periodBtn(90,'3ヶ月')}</div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kl">じっしした日</div><div class="kv">${a.activeDays}<span style="font-size:13px">/${a.nDays}日</span></div><div class="kt ${actPct>=70?'up':actPct>=40?'fl':'dn'}">継続率 ${actPct}%</div></div>
+      <div class="kpi"><div class="kl">へいきん達成率</div><div class="kv">${pct}<span style="font-size:13px">%</span></div><div class="kt ${trendTxt[0]}">${trendTxt[1]}</div></div>
+      <div class="kpi"><div class="kl">クリアした合計</div><div class="kv">${a.totalDone}<span style="font-size:13px">こ</span></div><div class="kt fl">毎日${a.all.length}こ中</div></div>
+      <div class="kpi"><div class="kl">最高記録</div><div class="kv">${a.recordProgress[0]&&a.recordProgress[0].best!=null?a.recordProgress[0].best:'—'}</div><div class="kt fl">${a.recordProgress[0]?esc(a.recordProgress[0].task.title):'記録メニューなし'}</div></div>
+    </div>
+
+    <div class="insight">
+      <div class="it">📊 達成のながれ（直近${showN}日）</div>
+      <div class="mini-bars">${bars}</div>
+    </div>
+
+    <div class="insight">
+      <div class="it">🔍 自動分析と気づき</div>
+      ${insHtml}
+    </div>
+
+    <div class="rep-btns">
+      <button class="rep-btn print" onclick="act.printReport()">🖨 レポートを印刷 / PDF保存</button>
+      <button class="rep-btn ai" onclick="act.aiReport()">🤖 AIに相談する文章をコピー</button>
+    </div>
+    <div class="rep-note">「AIに相談する文章をコピー」を押すと、この期間のデータと背景をまとめた文章がコピーされます。ChatGPTやClaude等に貼り付けると、メニューの進化やレベルアップの提案など、より詳しいアドバイスが受け取れます。印刷PDFをAIに添付してもOKです。</div>
+  `;
+}
+
+/* ── AI相談プロンプト生成 ── */
+function buildAiPrompt(a){
+  const wn=['日','月','火','水','木','金','土'];
+  const L=[];
+  L.push('あなたは子どもの運動・学習の習慣化を支援するコーチです。以下は小学1年生の男の子の家庭での日課記録です。データを分析し、(1)良い点 (2)課題 (3)メニューの具体的な改善・進化の提案（既存メニューのレベルアップ案、入れ替え案、新メニュー案）を、保護者向けに提案してください。');
+  L.push('');
+  L.push('# 背景・方針');
+  L.push('- 習い事: サッカー(週2)、空手(週1)、バスケ(週2)。まだ突出した熱中対象はない段階。');
+  L.push('- 教育方針: 強みを伸ばす／いろんな経験をさせる／熱中しないものはスパッと切り、のめり込めるものに投資。学習は暗記でなく概念理解を重視。');
+  L.push('- 身体的特徴: クラスで2番目に背が高い。体幹が弱め。');
+  L.push('- 運用思想: 「枠は厳しく、評価は温かく」。ゼロの日を作らない。3ヶ月ごとにメニュー見直し。');
+  L.push('- 家でできること中心（マンション2階・下が駐車場なので跳躍・ドリブル音はOK）。');
+  L.push('');
+  L.push('# 集計期間');
+  L.push(`${a.start} 〜 ${a.end}（${a.nDays}日間）`);
+  L.push('');
+  L.push('# サマリー');
+  L.push(`- 実施した日: ${a.activeDays}/${a.nDays}日（継続率${Math.round(a.activeRate*100)}%）`);
+  L.push(`- 平均達成率: ${Math.round(a.avgRate*100)}%（毎日${a.all.length}メニュー中）`);
+  L.push(`- 累計クリア数: ${a.totalDone}`);
+  L.push(`- 前半→後半の傾向: 1日あたり ${a.trend>=0?'+':''}${a.trend.toFixed(1)} メニュー`);
+  L.push('');
+  L.push('# メニュー別の実施回数と本人の気持ち（😆もっとやりたい / 🙂ふつう / 😮‍💨いやだった）');
+  a.perArr.forEach(p=>{
+    L.push(`- ${p.task.title}（目安${p.task.min}分）: 実施${p.done}回, 😆${p.love} 🙂${p.ok} 😮‍💨${p.meh}`);
+  });
+  L.push('');
+  if(a.recordProgress.some(r=>r.pts.length)){
+    L.push('# 数値記録の推移');
+    a.recordProgress.forEach(rp=>{
+      if(rp.pts.length)L.push(`- ${rp.task.title}: 最初${rp.first} → 最新${rp.last}（ベスト${rp.best}）`);
+    });
+    L.push('');
+  }
+  L.push('# 曜日別の平均達成メニュー数');
+  L.push(a.dowAvg.map((v,i)=>`${wn[i]}:${v.toFixed(1)}`).join(' / '));
+  L.push('');
+  // 本人の声（宣言・日記）
+  const voices=a.recs.filter(r=>r.v&&(r.v.declaration||r.v.diary)).slice(-10);
+  if(voices.length){
+    L.push('# 本人の声（宣言・ふりかえり日記の抜粋）');
+    voices.forEach(r=>{
+      if(r.v.declaration)L.push(`- ${r.d} 宣言: ${r.v.declaration}`);
+      if(r.v.diary)L.push(`- ${r.d} 日記: ${r.v.diary}`);
+    });
+    L.push('');
+  }
+  L.push('# お願いしたいこと');
+  L.push('1. 上記から読み取れる「強み・熱中の芽」と「つまずき」を指摘してください。');
+  L.push('2. 😆が多いメニューはどう発展させるべきか、具体的なレベルアップ版を提案してください。');
+  L.push('3. 😮‍💨が多い/実施が少ないメニューは、やり方変更・入れ替え・新メニューのどれが良いか提案してください。');
+  L.push('4. この子の年齢・方針・体幹の弱さを踏まえ、次の1ヶ月で試す価値のある新メニューを2〜3個、具体的なやり方つきで提案してください。');
+  return L.join('\n');
+}
+
+/* ── 印刷用レポート（別ウィンドウ） ── */
+function openPrintReport(a){
+  const wn=['日','月','火','水','木','金','土'];
+  const pct=Math.round(a.avgRate*100), actPct=Math.round(a.activeRate*100);
+  const ins=buildInsights(a);
+  // 日次バー
+  const maxC=Math.max(a.all.length,1);
+  const dayBars=a.recs.map(r=>{
+    const c=r.v?Object.keys(r.v.checks||{}).length:0;
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;justify-content:flex-end">
+      <div style="width:100%;max-width:18px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#38bdf8,#6366f1);height:${c/maxC*70}px;min-height:2px"></div>
+      <div style="font-size:7px;color:#94a3b8">${+r.d.slice(8)}</div></div>`;
+  }).join('');
+  // メニュー別テーブル
+  const rows=a.perArr.map(p=>{
+    const rate=Math.round(p.done/a.nDays*100);
+    return `<tr><td>${p.task.icon} ${esc(p.task.title)}</td><td style="text-align:center">${p.done}回 (${rate}%)</td>
+      <td style="text-align:center">😆${p.love} 🙂${p.ok} 😮‍💨${p.meh}</td></tr>`;
+  }).join('');
+  // 記録推移
+  let recBlock='';
+  a.recordProgress.forEach(rp=>{
+    if(rp.pts.length>=2){
+      const W=480,H=110,pad=26,maxV=Math.max(...rp.pts.map(p=>p.v),1);
+      const x=i=>rp.pts.length===1?W/2:pad+i*(W-pad*2)/(rp.pts.length-1);
+      const y=v=>H-18-(v/maxV)*(H-36);
+      const line=rp.pts.map((p,i)=>`${i?'L':'M'}${x(i)},${y(p.v)}`).join(' ');
+      const dots=rp.pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="3" fill="#7c3aed"/>`).join('');
+      recBlock+=`<div class="rp-card"><div class="rp-t">🏅 ${esc(rp.task.title)} の記録（${rp.first}→${rp.last}, ベスト${rp.best}）</div>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:110px"><path d="${line}" fill="none" stroke="#7c3aed" stroke-width="2.5"/>${dots}</svg></div>`;
+    }
+  });
+  const insHtml=ins.map(([t,ico,txt])=>{
+    const col=t==='good'?'#059669':t==='warn'?'#d97706':'#7c3aed';
+    return `<li><span style="color:${col};font-weight:900">${ico}</span> ${esc(txt)}</li>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+  <title>つみかさねレポート ${a.start}〜${a.end}</title>
+  <style>
+    @page{size:A4;margin:14mm}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Noto Sans JP','Hiragino Sans',sans-serif}
+    body{color:#1e293b;font-size:11px;line-height:1.6}
+    .head{background:linear-gradient(120deg,#0ea5e9,#6366f1);color:#fff;border-radius:12px;padding:18px 20px;margin-bottom:14px}
+    .head h1{font-size:20px;font-weight:900}
+    .head .sub{font-size:11px;opacity:.9;margin-top:3px}
+    .kpis{display:flex;gap:10px;margin-bottom:14px}
+    .k{flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;text-align:center}
+    .k .l{font-size:9px;color:#64748b;font-weight:700}
+    .k .v{font-size:22px;font-weight:900;color:#4338ca}
+    .sec{border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+    .sec h2{font-size:13px;font-weight:900;margin-bottom:8px;color:#334155}
+    .daybars{display:flex;align-items:flex-end;gap:3px;height:84px}
+    table{width:100%;border-collapse:collapse;font-size:10px}
+    th{background:#312e81;color:#fff;padding:5px 8px;text-align:left}
+    td{border-bottom:1px solid #eef;padding:5px 8px}
+    ul{padding-left:4px;list-style:none}
+    li{padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:11px}
+    .rp-card{margin-top:8px}.rp-t{font-size:10px;font-weight:700;color:#475569}
+    .foot{text-align:center;color:#94a3b8;font-size:9px;margin-top:14px}
+    .noprint{text-align:center;margin:16px 0}
+    .noprint button{font-size:14px;font-weight:900;border:none;border-radius:10px;padding:12px 28px;background:#6366f1;color:#fff;cursor:pointer}
+    @media print{.noprint{display:none}}
+  </style></head><body>
+    <div class="head"><h1>📋 つみかさねレポート</h1><div class="sub">${fmtJp(a.start)} 〜 ${fmtJp(a.end)}（${a.nDays}日間）</div></div>
+    <div class="kpis">
+      <div class="k"><div class="l">実施した日</div><div class="v">${a.activeDays}/${a.nDays}</div><div class="l">継続率 ${actPct}%</div></div>
+      <div class="k"><div class="l">平均達成率</div><div class="v">${pct}%</div></div>
+      <div class="k"><div class="l">累計クリア</div><div class="v">${a.totalDone}</div></div>
+      <div class="k"><div class="l">前半→後半</div><div class="v" style="font-size:16px">${a.trend>=0?'+':''}${a.trend.toFixed(1)}</div><div class="l">1日あたり</div></div>
+    </div>
+    <div class="sec"><h2>📊 日ごとの達成メニュー数</h2><div class="daybars">${dayBars}</div></div>
+    ${recBlock?`<div class="sec"><h2>🏅 記録の推移</h2>${recBlock}</div>`:''}
+    <div class="sec"><h2>📋 メニュー別の実施と気持ち</h2>
+      <table><tr><th>メニュー</th><th style="text-align:center">実施</th><th style="text-align:center">気持ち</th></tr>${rows}</table></div>
+    <div class="sec"><h2>🔍 分析と気づき</h2><ul>${insHtml}</ul></div>
+    <div class="foot">まいにちの つみかさね — 自動生成レポート</div>
+    <div class="noprint"><button onclick="window.print()">🖨 印刷 / PDFで保存</button></div>
+    <script>setTimeout(function(){window.print()},600)<\/script>
+  </body></html>`;
+
+  const w=window.open('','_blank');
+  if(!w){alert('ポップアップがブロックされました。ブラウザの設定で許可してください');return}
+  w.document.write(html);w.document.close();
+}
+
 function viewSettings(){
   const secEd=(key,label,cls)=>{
     const rows=tasks[key].map((t,i)=>`<div class="set-item">
