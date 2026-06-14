@@ -286,6 +286,8 @@ let pendingImg;          // 編集中の画像（undefined=変更なし, null=�
 let repDays=30;          // レポート対象期間
 let cheers=load('maiken_cheers_v1',[]);   // 受信した応援
 let plans=load('maiken_plans_v1',[]);     // 週間スケジュール
+let weekStart=load('maiken_weekstart_v1',1); // 週の始まり 0=日 1=月 …（既定:月）
+function saveWeekStart(){try{localStorage.setItem('maiken_weekstart_v1',JSON.stringify(weekStart))}catch(e){}queuePlanSync()}
 let schView=null;                          // 編集中の予定
 const PLAN_COLORS=[
   {name:'あお（学校）',c:'#3b82f6'},
@@ -305,7 +307,7 @@ function queuePlanSync(){
 }
 async function pushPlans(){
   if(!cloud.url)return;
-  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans})})}catch(e){}
+  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans,weekStart})})}catch(e){}
 }
 async function fetchPlans(){
   if(!cloud.url)return;
@@ -313,7 +315,9 @@ async function fetchPlans(){
     const sep=cloud.url.includes('?')?'&':'?';
     const r=await fetch(cloud.url+sep+'action=plans&secret='+encodeURIComponent(SYNC_SECRET));
     const j=await r.json();
-    if(j&&j.plans){plans=j.plans;try{localStorage.setItem('maiken_plans_v1',JSON.stringify(plans))}catch(e){}if(tab==='schedule')render();}
+    if(j&&j.plans){plans=j.plans;try{localStorage.setItem('maiken_plans_v1',JSON.stringify(plans))}catch(e){}}
+    if(j&&typeof j.weekStart==='number'){weekStart=j.weekStart;try{localStorage.setItem('maiken_weekstart_v1',JSON.stringify(weekStart))}catch(e){}}
+    if(j&&(j.plans||typeof j.weekStart==='number')&&tab==='schedule')render();
   }catch(e){}
 }
 // time helpers
@@ -476,6 +480,7 @@ window.act={
   closeModal(){editing=null;renderOverlay()},
   setRepDays(n){repDays=n;render()},
   /* schedule */
+  setWeekStart(v){weekStart=Number(v);saveWeekStart();render();},
   newPlan(day,startMin){
     const sm=startMin!=null?startMin:9*60;
     schView={id:'p'+Date.now(),day:day!=null?day:new Date().getDay(),start:toHHMM(sm),end:toHHMM(Math.min(sm+60,23*60+45)),title:'',place:'',memo:'',color:PLAN_COLORS[0].c,_isNew:true};
@@ -995,7 +1000,8 @@ function viewSchedule(){
 
   // 各曜日の列
   let cols='';
-  for(let d=0;d<7;d++){
+  for(let idx=0;idx<7;idx++){
+    const d=(weekStart+idx)%7;
     let cells='';
     for(let r=0;r<rows;r++){
       const min=START*60+r*15;const isHour=min%60===0;
@@ -1023,7 +1029,12 @@ function viewSchedule(){
   return `
     <div class="sch-toolbar">
       <div class="st-title">🗓 1しゅうかんの よてい</div>
-      <button class="sch-addbtn" onclick="act.newPlan()">＋ よていを ついか</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select onchange="act.setWeekStart(this.value)" style="font-family:inherit;font-weight:700;font-size:11px;border:none;border-radius:99px;padding:7px 10px;background:rgba(255,255,255,.15);color:#fff">
+          ${['日','月','火','水','木','金','土'].map((w,i)=>`<option value="${i}" ${weekStart===i?'selected':''} style="color:#1e293b">${w}曜はじまり</option>`).join('')}
+        </select>
+        <button class="sch-addbtn" onclick="act.newPlan()">＋ ついか</button>
+      </div>
     </div>
     <div class="sch-legend">${legend}</div>
     <div class="grid-wrap"><div class="grid">${timeCol}${cols}</div></div>

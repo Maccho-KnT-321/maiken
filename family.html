@@ -117,6 +117,7 @@ let days={};          // analyzePeriod が参照
 let tasksDef={morning:[],evening:[]};
 let cheers=[];
 let plans=[];
+let weekStart=1;
 const PLAN_COLORS_NAME={'#3b82f6':'がっこう','#22a05a':'サッカー','#f07020':'バスケ','#8b5cf6':'からて','#ec4899':'しゅくだい','#eab308':'あそび','#64748b':'そのた'};
 let repDays=30;
 let lastFetch=0;
@@ -140,6 +141,7 @@ async function loadAll(silent){
     if(pull&&pull.tasks)tasksDef=pull.tasks;
     if(ch&&ch.cheers)cheers=ch.cheers;
     if(pl&&pl.plans)plans=pl.plans;
+    if(pl&&typeof pl.weekStart==='number')weekStart=pl.weekStart;
     lastFetch=Date.now();
     render();
   }catch(e){
@@ -324,9 +326,9 @@ function scheduleCard(){
   const wn=['日','月','火','水','木','金','土'];
   const todayDow=new Date().getDay();
   let html='<div class="card"><div class="card-title">🗓 こんしゅうの よてい</div>';
-  // 今日を先頭に、7日ぶんを順に
+  // 週のはじまり（設定）から7日ぶんを順に
   for(let off=0;off<7;off++){
-    const d=(todayDow+off)%7;
+    const d=(weekStart+off)%7;
     const dayPlans=plans.filter(p=>p.day===d).sort((a,b)=>toMin(a.start)-toMin(b.start));
     if(!dayPlans.length)continue;
     const isToday=off===0;
