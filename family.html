@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>たいちゃん おうえんだん</title>
+<meta name="theme-color" content="#be185d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="おうえんだん">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23be185d'/%3E%3Ctext x='50' y='70' font-size='52' text-anchor='middle'%3E%F0%9F%92%96%3C/text%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gradient(165deg,#fdf2f8 0%,#fff7ed 60%,#fef3c7 100%);min-height:100vh;color:#374151;padding-bottom:40px;font-size:17px;line-height:1.7}
+.wrap{max-width:620px;margin:0 auto;padding:0 16px}
+.hero{text-align:center;padding:26px 0 14px}
+.hero .badge{display:inline-block;background:linear-gradient(120deg,#ec4899,#f97316);color:#fff;font-weight:900;font-size:13px;letter-spacing:2px;border-radius:99px;padding:6px 18px}
+.hero h1{font-size:30px;font-weight:900;margin-top:12px;color:#be185d}
+.hero .date{font-size:14px;color:#9ca3af;margin-top:4px}
+.card{background:#fff;border-radius:22px;padding:20px;margin-top:16px;box-shadow:0 10px 30px rgba(190,24,93,.10)}
+.card-title{font-size:16px;font-weight:900;color:#be185d;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.big-stat{display:flex;gap:14px;text-align:center}
+.bs{flex:1;background:linear-gradient(160deg,#fff,#fdf2f8);border:2px solid #fce7f3;border-radius:18px;padding:16px 8px}
+.bs .v{font-size:40px;font-weight:900;color:#ec4899;line-height:1}
+.bs .l{font-size:13px;color:#6b7280;font-weight:700;margin-top:6px}
+.week{display:flex;gap:6px;justify-content:space-between;margin-top:6px}
+.wd{flex:1;text-align:center}
+.wd-circle{width:100%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;border:3px solid #f3e8ff}
+.wd-circle.done{background:linear-gradient(135deg,#fbcfe8,#fed7aa);border-color:#f9a8d4}
+.wd-circle.none{background:#f9fafb;color:#d1d5db}
+.wd-lbl{font-size:12px;color:#9ca3af;margin-top:4px;font-weight:700}
+.diary{border-left:4px solid #f9a8d4;padding:6px 0 6px 14px;margin-bottom:12px}
+.diary .dd{font-size:12px;color:#9ca3af;font-weight:700}
+.diary .dt{font-size:17px;font-weight:700;color:#374151;margin-top:2px}
+.record-line{font-size:15px;color:#6b7280;margin-top:6px}
+.record-line b{color:#ec4899;font-size:20px}
+.cheer-area{margin-top:8px}
+.cheer-btns{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.cheer-btn{border:none;font-family:inherit;font-weight:900;font-size:18px;border-radius:16px;padding:14px 10px;cursor:pointer;background:linear-gradient(135deg,#fce7f3,#fed7aa);color:#be185d;flex:1;min-width:120px;box-shadow:0 4px 12px rgba(236,72,153,.15)}
+.cheer-btn:active{transform:scale(.96)}
+.sender-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.sender-row label{font-size:14px;font-weight:700;color:#6b7280;flex-shrink:0}
+.sender-sel{flex:1;font-size:16px;font-family:inherit;border:2px solid #fce7f3;border-radius:12px;padding:10px;font-weight:700}
+.free-row{display:flex;gap:8px}
+.free-input{flex:1;font-size:16px;font-family:inherit;border:2px solid #fce7f3;border-radius:12px;padding:12px}
+.send-btn{border:none;font-family:inherit;font-weight:900;font-size:16px;border-radius:12px;padding:0 22px;background:linear-gradient(120deg,#ec4899,#f97316);color:#fff;cursor:pointer}
+.sent-list{margin-top:16px}
+.sent-item{background:#fdf2f8;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:15px}
+.sent-item .si-head{font-size:12px;color:#9ca3af;font-weight:700;margin-bottom:2px}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#be185d;color:#fff;font-weight:900;border-radius:99px;padding:12px 26px;z-index:90;font-size:16px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.loading{text-align:center;padding:50px 0;color:#be185d;font-weight:900;font-size:20px}
+.empty{text-align:center;color:#9ca3af;padding:16px;font-size:15px}
+.refresh{display:block;margin:18px auto 0;border:none;background:#fff;color:#be185d;font-weight:900;font-size:14px;border-radius:99px;padding:10px 24px;box-shadow:0 4px 12px rgba(190,24,93,.12);cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <span class="badge">💖 おうえんだん せんよう</span>
+    <h1>たいちゃんの がんばり</h1>
+    <div class="date" id="date"></div>
+  </div>
+  <div id="view"><div class="loading">よみこみちゅう…💕</div></div>
+</div>
+<div id="toast-area"></div>
+
+<script>
+/* ───────────────────────────────────────────
+   じいじ・ばあば せんよう 閲覧＆おうえんアプリ
+   （見るだけ＋応援メッセージのみ。記録は変更しない）
+─────────────────────────────────────────── */
+const GAS_URL='https://script.google.com/macros/s/AKfycbzTcyZdX6vLxLkgx88zkVWeYABPH0mPR7WHw_U_W5BtSNVbciqrziuzfYaZ-6A92YN0/exec';
+const SECRET='taichan0716';
+const QUICK=['すごい！','えらい！','がんばったね！','100てん！','かっこいい！','ナイス！'];
+const SENDERS=['じいじ','ばあば'];
+
+let data={days:{},tasks:null};
+let cheers=[];
+
+const ymd=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addDays=(s,n)=>{const[y,m,d]=s.split('-').map(Number);return ymd(new Date(y,m-1,d+n))};
+const fmtJp=s=>{if(!s)return'';const[y,m,d]=s.split('-');const w=['日','月','火','水','木','金','土'][new Date(+y,+m-1,+d).getDay()];return`${+m}月${+d}日（${w}）`};
+const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=ymd();
+
+function api(action){
+  const sep=GAS_URL.includes('?')?'&':'?';
+  return fetch(GAS_URL+sep+'action='+action+'&secret='+encodeURIComponent(SECRET)).then(r=>r.json());
+}
+function post(obj){
+  return fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(Object.assign({secret:SECRET},obj))}).then(r=>r.json());
+}
+
+async function loadAll(){
+  try{
+    const [pull,ch]=await Promise.all([api('pull'),api('cheers')]);
+    if(pull&&pull.days)data={days:pull.days,tasks:pull.tasks};
+    if(ch&&ch.cheers)cheers=ch.cheers;
+    render();
+  }catch(e){
+    document.getElementById('view').innerHTML='<div class="card"><div class="empty">うまく よみこめませんでした。<br>でんぱの よい ところで もういちど ひらいてみてください。</div><button class="refresh" onclick="loadAll()">↻ もういちど</button></div>';
+  }
+}
+
+function allTasks(){
+  const t=data.tasks||{morning:[],evening:[]};
+  return [].concat(t.morning||[],t.evening||[]);
+}
+function dayDone(d){const v=data.days[d];return v?Object.keys(v.checks||{}).length:0}
+
+function render(){
+  document.getElementById('date').textContent=fmtJp(today)+' げんざい';
+  const total=Math.max(allTasks().length,1);
+
+  // 今週（直近7日）
+  let weekDone=0,activeDays=0;
+  const wd=[];
+  for(let i=6;i>=0;i--){
+    const d=addDays(today,-i);const c=dayDone(d);
+    weekDone+=c;if(c>0)activeDays++;
+    const[y,m,dd]=d.split('-').map(Number);
+    wd.push({w:['日','月','火','水','木','金','土'][new Date(y,m-1,dd).getDay()],c,isToday:d===today});
+  }
+  // 連続日数
+  let streak=0,cur=today;
+  if(dayDone(cur)===0)cur=addDays(cur,-1);
+  while(dayDone(cur)>0){streak++;cur=addDays(cur,-1)}
+
+  // 最近の日記
+  const diaries=Object.entries(data.days).filter(([,v])=>v.diary).sort(([a],[b])=>a>b?-1:1).slice(0,5);
+
+  // リフティング等の記録
+  const recTask=allTasks().find(t=>t.recordLabel);
+  let recordHtml='';
+  if(recTask){
+    const pts=Object.entries(data.days).filter(([,v])=>v.records&&v.records[recTask.id]!=null).sort(([a],[b])=>a<b?-1:1);
+    if(pts.length){
+      const best=Math.max(...pts.map(([,v])=>v.records[recTask.id]));
+      const latest=pts[pts.length-1][1].records[recTask.id];
+      recordHtml=`<div class="card"><div class="card-title">🏅 ${esc(recTask.title)}</div>
+        <div class="record-line">いまの きろく： <b>${latest}</b> かい</div>
+        <div class="record-line">これまでの さいこう： <b>${best}</b> かい</div></div>`;
+    }
+  }
+
+  const weekHtml=wd.map(x=>`<div class="wd">
+    <div class="wd-circle ${x.c>0?'done':'none'}">${x.c>0?(x.c>=total?'💯':'⭕'):'・'}</div>
+    <div class="wd-lbl">${x.w}</div></div>`).join('');
+
+  const diaryHtml=diaries.length?diaries.map(([d,v])=>`<div class="diary"><div class="dd">${fmtJp(d)}</div><div class="dt">📔 ${esc(v.diary)}</div></div>`).join(''):'<div class="empty">まだ にっきは ないよ</div>';
+
+  const quickBtns=QUICK.map(q=>`<button class="cheer-btn" onclick="sendCheer('${esc(q)}')">${esc(q)}</button>`).join('');
+  const senderOpts=SENDERS.map(s=>`<option value="${s}">${s}</option>`).join('');
+  const sentHtml=cheers.length?cheers.slice(0,8).map(c=>`<div class="sent-item"><div class="si-head">${esc(c.sender)} ・ ${esc(c.time||'')} ${c.read?'（よんでくれたよ✓）':''}</div>${esc(c.message)}</div>`).join(''):'<div class="empty">まだ おうえんは ありません</div>';
+
+  document.getElementById('view').innerHTML=`
+    <div class="card">
+      <div class="big-stat">
+        <div class="bs"><div class="v">${streak}</div><div class="l">れんぞく日数🔥</div></div>
+        <div class="bs"><div class="v">${activeDays}<span style="font-size:20px">/7</span></div><div class="l">こんしゅう がんばった日</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📅 こんしゅうの ようす</div>
+      <div class="week">${weekHtml}</div>
+      <div class="empty" style="padding:8px 0 0;font-size:13px">💯=ぜんぶ ⭕=がんばった ・=おやすみ</div>
+    </div>
+
+    ${recordHtml}
+
+    <div class="card">
+      <div class="card-title">📔 さいきん できたこと</div>
+      ${diaryHtml}
+    </div>
+
+    <div class="card">
+      <div class="card-title">💌 おうえんを おくる</div>
+      <div class="cheer-area">
+        <div class="sender-row"><label>だれから：</label>
+          <select class="sender-sel" id="sender">${senderOpts}</select></div>
+        <div class="cheer-btns">${quickBtns}</div>
+        <div class="free-row">
+          <input class="free-input" id="free" placeholder="じゆうに かいてね">
+          <button class="send-btn" onclick="sendFree()">おくる</button>
+        </div>
+      </div>
+      <div class="sent-list">${sentHtml}</div>
+    </div>
+
+    <button class="refresh" onclick="loadAll()">↻ さいしんに こうしん</button>
+  `;
+}
+
+function toast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.getElementById('toast-area').appendChild(t);
+  setTimeout(()=>t.remove(),2200);
+}
+
+async function sendCheer(msg){
+  const sender=(document.getElementById('sender')||{}).value||'おうえん';
+  try{
+    await post({action:'sendCheer',sender,message:msg});
+    toast('💌 おくりました！');
+    // 楽観的に表示へ追加
+    cheers.unshift({sender,message:msg,time:'いま',read:false});
+    render();
+  }catch(e){toast('おくれませんでした…')}
+}
+function sendFree(){
+  const el=document.getElementById('free');
+  const v=(el.value||'').trim();
+  if(!v){toast('メッセージを かいてね');return}
+  sendCheer(v);
+  el.value='';
+}
+
+loadAll();
+</script>
+</body>
+</html>

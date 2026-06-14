@@ -117,6 +117,15 @@ svg.line-chart{width:100%;height:160px}
 .io-btn.ex{background:linear-gradient(90deg,#fb923c,#f43f5e);color:#fff}
 .io-btn.im{background:#e0e7ff;color:#4338ca}
 
+/* cheer */
+.cheer-banner{background:linear-gradient(120deg,#ec4899,#f97316);border-radius:16px;padding:14px 16px;margin-top:14px;box-shadow:0 8px 24px rgba(236,72,153,.35);cursor:pointer}
+.cheer-banner .ct{color:#fff;font-weight:900;font-size:14px;display:flex;align-items:center;gap:6px}
+.cheer-banner .cm{color:#fff;font-size:13px;margin-top:5px;line-height:1.5;background:rgba(255,255,255,.18);border-radius:10px;padding:8px 10px}
+.cheer-banner .cmore{color:rgba(255,255,255,.85);font-size:10px;margin-top:6px}
+.cheer-list-item{border-left:3px solid #ec4899;padding:5px 0 5px 10px;margin-bottom:8px;font-size:13px}
+.cheer-list-item .cs{font-weight:900;color:#be185d}
+.cheer-list-item .ct2{font-size:10px;color:#94a3b8;margin-left:6px}
+
 /* report */
 .rep-head{background:linear-gradient(120deg,#0ea5e9,#6366f1);border-radius:16px;padding:16px;color:#fff;margin-top:16px}
 .rep-head .rt{font-size:17px;font-weight:900}
@@ -246,6 +255,22 @@ let tab='today';
 let editing=null;
 let pendingImg;          // 編集中の画像（undefined=変更なし, null=削除, 文字列=新画像）
 let repDays=30;          // レポート対象期間
+let cheers=load('maiken_cheers_v1',[]);   // 受信した応援
+function saveCheers(){try{localStorage.setItem('maiken_cheers_v1',JSON.stringify(cheers))}catch(e){}}
+async function fetchCheers(){
+  if(!cloud.url)return;
+  try{
+    const sep=cloud.url.includes('?')?'&':'?';
+    const r=await fetch(cloud.url+sep+'action=cheers&secret='+encodeURIComponent(SYNC_SECRET));
+    const j=await r.json();
+    if(j&&j.cheers){cheers=j.cheers;saveCheers();if(tab==='today')render();}
+  }catch(e){}
+}
+async function markCheersRead(){
+  cheers.forEach(c=>c.read=true);saveCheers();render();
+  if(!cloud.url)return;
+  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'readCheers',secret:SYNC_SECRET})})}catch(e){}
+}
 const LS_IMGS='maiken_imgs_v1';
 let imgs=load(LS_IMGS,{});
 function saveImgs(){try{localStorage.setItem(LS_IMGS,JSON.stringify(imgs))}catch(e){alert('がぞうの ほぞんできる りょうが いっぱいです。せっていで古い画像を削除してください')}}
@@ -386,6 +411,16 @@ window.act={
   },
   closeModal(){editing=null;renderOverlay()},
   setRepDays(n){repDays=n;render()},
+  openCheers(){
+    const list=cheers.length?cheers.map(c=>`<div class="cheer-list-item"><span class="cs">${esc(c.sender)}</span><span class="ct2">${esc(c.time||'')}</span><div>${esc(c.message)}</div></div>`).join(''):'<div class="empty">まだ おうえんは ないよ</div>';
+    document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeCheers()"><div class="modal" onclick="event.stopPropagation()">
+      <h3>💌 じいじ・ばあば からの おうえん</h3>
+      <div style="max-height:340px;overflow:auto">${list}</div>
+      <div class="m-btns"><button class="m-btn m-save" onclick="act.closeCheers()">よんだ！</button></div>
+    </div></div>`;
+    markCheersRead();
+  },
+  closeCheers(){document.getElementById('overlay').innerHTML=''},
   aiReport(){
     const txt=buildAiPrompt(analyzePeriod(repDays));
     navigator.clipboard.writeText(txt).then(
@@ -640,12 +675,22 @@ function taskHtml(t){
 
 function viewToday(){
   const d=getDay(today);
+  const unread=cheers.filter(c=>!c.read);
+  let cheerBanner='';
+  if(cheers.length){
+    const latest=cheers[0];
+    cheerBanner=`<div class="cheer-banner" onclick="act.openCheers()">
+      <div class="ct">💌 じいじ・ばあば からの おうえん ${unread.length?`<span style="background:#fff;color:#dc2626;border-radius:99px;font-size:10px;padding:1px 8px">${unread.length}つ あたらしい</span>`:''}</div>
+      <div class="cm">${esc(latest.sender)}：${esc(latest.message)}</div>
+      ${cheers.length>1?`<div class="cmore">ぜんぶ よむ（${cheers.length}けん）→</div>`:''}
+    </div>`;
+  }
   const sec=(key,cls,label)=>{
     const list=tasks[key];const done=list.filter(t=>d.checks[t.id]).length;
     return`<div class="sec-head ${cls}"><span>${label}</span><span>${done}/${list.length}</span></div>
       <div class="sec-body">${list.map(taskHtml).join('')}</div>`;
   };
-  return sec('morning','morning','🌅 あさの ぶ')+
+  return cheerBanner+sec('morning','morning','🌅 あさの ぶ')+
     `<div class="input-card"><div class="lbl o">📣 きょうの もくひょう</div>
       <input value="${esc(d.declaration)}" placeholder="きょうは ○○ を がんばる！" onchange="act.text('declaration',this.value)"></div>`+
     sec('evening','evening','🌙 よるの ぶ')+
@@ -1103,7 +1148,7 @@ function renderOverlay(){
 }
 
 render();
-if(cloud.url)autoPull();
+if(cloud.url){autoPull();fetchCheers();}
 </script>
 </body>
 </html>
