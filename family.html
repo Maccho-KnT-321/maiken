@@ -10,30 +10,44 @@
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23be185d'/%3E%3Ctext x='50' y='70' font-size='52' text-anchor='middle'%3E%F0%9F%92%96%3C/text%3E%3C/svg%3E">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gradient(165deg,#fdf2f8 0%,#fff7ed 60%,#fef3c7 100%);min-height:100vh;color:#374151;padding-bottom:40px;font-size:17px;line-height:1.7}
+body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gradient(165deg,#fdf2f8 0%,#fff7ed 60%,#fef3c7 100%);min-height:100vh;color:#374151;padding-bottom:96px;font-size:17px;line-height:1.7}
 .wrap{max-width:620px;margin:0 auto;padding:0 16px}
-.hero{text-align:center;padding:26px 0 14px}
+.hero{text-align:center;padding:22px 0 8px}
 .hero .badge{display:inline-block;background:linear-gradient(120deg,#ec4899,#f97316);color:#fff;font-weight:900;font-size:13px;letter-spacing:2px;border-radius:99px;padding:6px 18px}
-.hero h1{font-size:30px;font-weight:900;margin-top:12px;color:#be185d}
-.hero .date{font-size:14px;color:#9ca3af;margin-top:4px}
+.hero h1{font-size:28px;font-weight:900;margin-top:10px;color:#be185d}
+.hero .date{font-size:13px;color:#9ca3af;margin-top:4px}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#16a34a;font-weight:700;margin-top:6px}
+.live .dot{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
 .card{background:#fff;border-radius:22px;padding:20px;margin-top:16px;box-shadow:0 10px 30px rgba(190,24,93,.10)}
 .card-title{font-size:16px;font-weight:900;color:#be185d;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .big-stat{display:flex;gap:14px;text-align:center}
 .bs{flex:1;background:linear-gradient(160deg,#fff,#fdf2f8);border:2px solid #fce7f3;border-radius:18px;padding:16px 8px}
 .bs .v{font-size:40px;font-weight:900;color:#ec4899;line-height:1}
 .bs .l{font-size:13px;color:#6b7280;font-weight:700;margin-top:6px}
+.todaybox{background:linear-gradient(160deg,#fff,#fef9f5);border:2px solid #fed7aa;border-radius:18px;padding:16px;margin-top:4px}
+.tb-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tb-head .l{font-size:14px;font-weight:900;color:#ea580c}
+.tb-head .v{font-size:15px;font-weight:900;color:#ea580c}
+.tb-prog{height:16px;background:#fde68a;border-radius:99px;overflow:hidden}
+.tb-fill{height:100%;background:linear-gradient(90deg,#fb923c,#f43f5e);border-radius:99px;transition:width .5s}
+.tb-list{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.tb-item{display:flex;align-items:center;gap:10px;font-size:15px}
+.tb-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:#f3f4f6;border:2px solid #e5e7eb}
+.tb-ic.on{background:linear-gradient(135deg,#bbf7d0,#fed7aa);border-color:#86efac}
+.tb-name{flex:1}.tb-name.on{color:#059669;font-weight:700}
 .week{display:flex;gap:6px;justify-content:space-between;margin-top:6px}
 .wd{flex:1;text-align:center}
 .wd-circle{width:100%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;border:3px solid #f3e8ff}
 .wd-circle.done{background:linear-gradient(135deg,#fbcfe8,#fed7aa);border-color:#f9a8d4}
 .wd-circle.none{background:#f9fafb;color:#d1d5db}
+.wd-circle.tdy{box-shadow:0 0 0 3px #f97316}
 .wd-lbl{font-size:12px;color:#9ca3af;margin-top:4px;font-weight:700}
 .diary{border-left:4px solid #f9a8d4;padding:6px 0 6px 14px;margin-bottom:12px}
 .diary .dd{font-size:12px;color:#9ca3af;font-weight:700}
 .diary .dt{font-size:17px;font-weight:700;color:#374151;margin-top:2px}
 .record-line{font-size:15px;color:#6b7280;margin-top:6px}
 .record-line b{color:#ec4899;font-size:20px}
-.cheer-area{margin-top:8px}
 .cheer-btns{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
 .cheer-btn{border:none;font-family:inherit;font-weight:900;font-size:18px;border-radius:16px;padding:14px 10px;cursor:pointer;background:linear-gradient(135deg,#fce7f3,#fed7aa);color:#be185d;flex:1;min-width:120px;box-shadow:0 4px 12px rgba(236,72,153,.15)}
 .cheer-btn:active{transform:scale(.96)}
@@ -43,13 +57,35 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .free-row{display:flex;gap:8px}
 .free-input{flex:1;font-size:16px;font-family:inherit;border:2px solid #fce7f3;border-radius:12px;padding:12px}
 .send-btn{border:none;font-family:inherit;font-weight:900;font-size:16px;border-radius:12px;padding:0 22px;background:linear-gradient(120deg,#ec4899,#f97316);color:#fff;cursor:pointer}
-.sent-list{margin-top:16px}
 .sent-item{background:#fdf2f8;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:15px}
 .sent-item .si-head{font-size:12px;color:#9ca3af;font-weight:700;margin-bottom:2px}
 .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#be185d;color:#fff;font-weight:900;border-radius:99px;padding:12px 26px;z-index:90;font-size:16px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .loading{text-align:center;padding:50px 0;color:#be185d;font-weight:900;font-size:20px}
 .empty{text-align:center;color:#9ca3af;padding:16px;font-size:15px}
 .refresh{display:block;margin:18px auto 0;border:none;background:#fff;color:#be185d;font-weight:900;font-size:14px;border-radius:99px;padding:10px 24px;box-shadow:0 4px 12px rgba(190,24,93,.12);cursor:pointer;font-family:inherit}
+/* report */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kpi{background:linear-gradient(160deg,#fff,#fdf2f8);border:2px solid #fce7f3;border-radius:16px;padding:13px}
+.kpi .kl{font-size:12px;color:#6b7280;font-weight:700}
+.kpi .kv{font-size:26px;font-weight:900;margin-top:2px;color:#be185d}
+.kpi .kt{font-size:11px;font-weight:700;margin-top:2px}
+.kpi .kt.up{color:#059669}.kpi .kt.dn{color:#dc2626}.kpi .kt.fl{color:#9ca3af}
+.ins-item{display:flex;gap:8px;font-size:14px;line-height:1.6;padding:7px 0;border-bottom:1px solid #fce7f3}
+.ins-item:last-child{border:none}
+.ins-ico{flex-shrink:0;font-size:16px}
+.mini-bars{display:flex;align-items:flex-end;gap:5px;height:90px;margin-top:8px}
+.mini-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
+.mini-bar{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#f9a8d4,#fb923c);min-height:2px}
+.mini-d{font-size:8px;color:#9ca3af}
+.rep-period{display:flex;gap:8px;margin-bottom:14px}
+.rep-pill{border:2px solid #fce7f3;font-family:inherit;font-weight:700;font-size:13px;border-radius:99px;padding:8px 16px;cursor:pointer;background:#fff;color:#be185d}
+.rep-pill.on{background:#ec4899;color:#fff;border-color:#ec4899}
+/* tab bar */
+.tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.97);border-top:2px solid #fce7f3;backdrop-filter:blur(8px);z-index:40}
+.tabbar-in{max-width:620px;margin:0 auto;display:flex}
+.tab{flex:1;padding:10px 0 12px;text-align:center;font-size:13px;font-weight:900;color:#d8b4c8;cursor:pointer;border:none;background:none;font-family:inherit}
+.tab .ico{font-size:24px;display:block}
+.tab.on{color:#ec4899}
 </style>
 </head>
 <body>
@@ -58,81 +94,255 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
     <span class="badge">💖 おうえんだん せんよう</span>
     <h1>たいちゃんの がんばり</h1>
     <div class="date" id="date"></div>
+    <div class="live"><span class="dot"></span>じどうで さいしんに こうしんされます</div>
   </div>
   <div id="view"><div class="loading">よみこみちゅう…💕</div></div>
 </div>
+<div class="tabbar"><div class="tabbar-in" id="tabbar"></div></div>
 <div id="toast-area"></div>
 
 <script>
 /* ───────────────────────────────────────────
-   じいじ・ばあば せんよう 閲覧＆おうえんアプリ
-   （見るだけ＋応援メッセージのみ。記録は変更しない）
+   じいじ・ばあば せんよう（閲覧＋応援＋レポート）
+   記録のチェックだけは不可。それ以外は全部入り。
 ─────────────────────────────────────────── */
 const GAS_URL='https://script.google.com/macros/s/AKfycbzTcyZdX6vLxLkgx88zkVWeYABPH0mPR7WHw_U_W5BtSNVbciqrziuzfYaZ-6A92YN0/exec';
 const SECRET='taichan0716';
 const QUICK=['すごい！','えらい！','がんばったね！','100てん！','かっこいい！','ナイス！'];
 const SENDERS=['じいじ','ばあば'];
+const AUTO_REFRESH_MS=30000;
 
-let data={days:{},tasks:null};
+let tab='home';
+let days={};          // analyzePeriod が参照
+let tasksDef={morning:[],evening:[]};
 let cheers=[];
+let repDays=30;
+let lastFetch=0;
 
 const ymd=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const addDays=(s,n)=>{const[y,m,d]=s.split('-').map(Number);return ymd(new Date(y,m-1,d+n))};
 const fmtJp=s=>{if(!s)return'';const[y,m,d]=s.split('-');const w=['日','月','火','水','木','金','土'][new Date(+y,+m-1,+d).getDay()];return`${+m}月${+d}日（${w}）`};
 const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=ymd();
+function allTasks(){return [].concat(tasksDef.morning||[],tasksDef.evening||[])}
+function dayDone(d){const v=days[d];return v?Object.keys(v.checks||{}).length:0}
 
-function api(action){
-  const sep=GAS_URL.includes('?')?'&':'?';
-  return fetch(GAS_URL+sep+'action='+action+'&secret='+encodeURIComponent(SECRET)).then(r=>r.json());
-}
-function post(obj){
-  return fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(Object.assign({secret:SECRET},obj))}).then(r=>r.json());
-}
+function api(action){const sep=GAS_URL.includes('?')?'&':'?';return fetch(GAS_URL+sep+'action='+action+'&secret='+encodeURIComponent(SECRET)).then(r=>r.json())}
+function post(obj){return fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(Object.assign({secret:SECRET},obj))}).then(r=>r.json())}
 
-async function loadAll(){
+async function loadAll(silent){
   try{
     const [pull,ch]=await Promise.all([api('pull'),api('cheers')]);
-    if(pull&&pull.days)data={days:pull.days,tasks:pull.tasks};
+    if(pull&&pull.days)days=pull.days;
+    if(pull&&pull.tasks)tasksDef=pull.tasks;
     if(ch&&ch.cheers)cheers=ch.cheers;
+    lastFetch=Date.now();
     render();
   }catch(e){
-    document.getElementById('view').innerHTML='<div class="card"><div class="empty">うまく よみこめませんでした。<br>でんぱの よい ところで もういちど ひらいてみてください。</div><button class="refresh" onclick="loadAll()">↻ もういちど</button></div>';
+    if(!silent)document.getElementById('view').innerHTML='<div class="card"><div class="empty">うまく よみこめませんでした。<br>でんぱの よい ところで もういちど ひらいてみてください。</div><button class="refresh" onclick="loadAll()">↻ もういちど</button></div>';
   }
 }
 
-function allTasks(){
-  const t=data.tasks||{morning:[],evening:[]};
-  return [].concat(t.morning||[],t.evening||[]);
+/* ===== 分析エンジン（記録アプリと共通ロジック） ===== */
+function analyzePeriod(nDays){
+  const all=allTasks();
+  const start=addDays(today,-(nDays-1));
+  // 対象日のリスト
+  const dates=[];for(let i=nDays-1;i>=0;i--)dates.push(addDays(today,-i));
+  const recs=dates.map(d=>({d,v:days[d]}));
+
+  const activeDays=recs.filter(r=>r.v&&Object.keys(r.v.checks||{}).length>0).length;
+  const totalPossible=nDays*all.length;
+  let totalDone=0;
+  recs.forEach(r=>{if(r.v)totalDone+=Object.keys(r.v.checks||{}).length});
+  const avgRate=totalPossible?totalDone/totalPossible:0;
+  const activeRate=nDays?activeDays/nDays:0;
+
+  // メニュー別 実施回数・気持ち集計
+  const per={};
+  all.forEach(t=>per[t.id]={task:t,done:0,love:0,ok:0,meh:0});
+  recs.forEach(r=>{
+    if(!r.v)return;
+    Object.keys(r.v.checks||{}).forEach(id=>{if(per[id])per[id].done++});
+    Object.entries(r.v.feels||{}).forEach(([id,f])=>{if(per[id]&&f)per[id][f]++});
+  });
+  const perArr=Object.values(per);
+
+  // 前半 vs 後半（伸び）
+  const half=Math.floor(nDays/2);
+  const firstHalf=recs.slice(0,half), secondHalf=recs.slice(half);
+  const sum=arr=>arr.reduce((a,r)=>a+(r.v?Object.keys(r.v.checks||{}).length:0),0);
+  const fhAvg=firstHalf.length?sum(firstHalf)/firstHalf.length:0;
+  const shAvg=secondHalf.length?sum(secondHalf)/secondHalf.length:0;
+  const trend=shAvg-fhAvg;
+
+  // 記録系（リフティング等）の伸び
+  const recTasks=all.filter(t=>t.recordLabel);
+  const recordProgress=recTasks.map(t=>{
+    const pts=recs.filter(r=>r.v&&r.v.records&&r.v.records[t.id]!=null).map(r=>({d:r.d,v:r.v.records[t.id]}));
+    if(pts.length<1)return{task:t,pts:[],first:null,last:null,best:null};
+    return{task:t,pts,first:pts[0].v,last:pts[pts.length-1].v,best:Math.max(...pts.map(p=>p.v))};
+  });
+
+  // 曜日別達成
+  const dow=[0,0,0,0,0,0,0],dowCnt=[0,0,0,0,0,0,0];
+  recs.forEach(r=>{
+    const [y,m,dd]=r.d.split('-').map(Number);
+    const w=new Date(y,m-1,dd).getDay();
+    dowCnt[w]++;
+    if(r.v)dow[w]+=Object.keys(r.v.checks||{}).length;
+  });
+  const dowAvg=dow.map((s,i)=>dowCnt[i]?s/dowCnt[i]:0);
+
+  return{nDays,start,end:today,dates,recs,activeDays,activeRate,totalDone,avgRate,perArr,trend,fhAvg,shAvg,recordProgress,dowAvg,all};
 }
-function dayDone(d){const v=data.days[d];return v?Object.keys(v.checks||{}).length:0}
+function buildInsights(a){
+  const ins=[];
+  // 継続性
+  if(a.activeRate>=0.85)ins.push(['good','🔥',`${a.nDays}日のうち${a.activeDays}日 実施。習慣がしっかり定着しています。`]);
+  else if(a.activeRate>=0.5)ins.push(['warn','📌',`実施は${a.activeDays}/${a.nDays}日。「ゼロの日を作らない」を意識すると、もう一段定着します。`]);
+  else if(a.activeDays>0)ins.push(['warn','💡',`実施が${a.activeDays}/${a.nDays}日とまばら。メニューを減らすか、朝1つ・夜1つの「最小セット」から立て直すのが有効です。`]);
+
+  // 伸び
+  if(a.trend>0.5)ins.push(['good','📈',`期間後半は前半より1日あたり+${a.trend.toFixed(1)}メニュー増加。勢いがついています。`]);
+  else if(a.trend<-0.5)ins.push(['warn','📉',`後半に失速（1日あたり${a.trend.toFixed(1)}）。飽きのサインかも。メニュー入れ替えの検討時期です。`]);
+
+  // 記録の伸び
+  a.recordProgress.forEach(rp=>{
+    if(rp.pts.length>=2){
+      const diff=rp.last-rp.first;
+      if(diff>0)ins.push(['good','🏅',`「${rp.task.title}」の記録が ${rp.first}→${rp.last}（ベスト${rp.best}）。明確に伸びています。`]);
+      else if(diff<0)ins.push(['warn','🤔',`「${rp.task.title}」の記録が伸び悩み（ベスト${rp.best}）。やり方の図解を見直すか、難易度を一段変えると良いかも。`]);
+    }
+  });
+
+  // 熱中シグナル（love多い）
+  const loved=a.perArr.filter(p=>p.love>0).sort((x,y)=>y.love-x.love);
+  if(loved.length){
+    const top=loved[0];
+    ins.push(['idea','😆',`「${top.task.title}」に😆が${top.love}回。ここが投資先候補。時間を増やす／レベルアップ版に進化させると伸びます。`]);
+  }
+  // いやがるシグナル（meh多い）
+  const disliked=a.perArr.filter(p=>p.meh>=2&&p.meh>=p.love).sort((x,y)=>y.meh-x.meh);
+  if(disliked.length){
+    const top=disliked[0];
+    ins.push(['warn','😮‍💨',`「${top.task.title}」に😮‍💨が${top.meh}回。やり方を変える・別メニューに置き換える・一旦休むのいずれかを検討。`]);
+  }
+  // ほぼ手付かずのメニュー
+  const neglected=a.perArr.filter(p=>p.done<=Math.max(1,a.nDays*0.1));
+  if(neglected.length&&a.activeDays>3){
+    ins.push(['warn','⚠️',`ほとんど実施されていないメニュー：${neglected.map(p=>p.task.title).join('、')}。続かない理由（難しい/つまらない/時間が合わない）を本人に聞いてみましょう。`]);
+  }
+  // 曜日の谷
+  const minDow=a.dowAvg.indexOf(Math.min(...a.dowAvg.filter((_,i)=>a.dowAvg[i]>=0)));
+  const wn=['日','月','火','水','木','金','土'];
+  const maxAvg=Math.max(...a.dowAvg);
+  if(maxAvg>0&&a.dowAvg[minDow]<maxAvg*0.5){
+    ins.push(['idea','🗓',`${wn[minDow]}曜の達成が低め。習い事や疲れと重なっていないか確認し、その曜日だけ軽いメニューにするのも手です。`]);
+  }
+  if(ins.length===0)ins.push(['idea','🌱','まだ示唆を出すにはデータが少なめ。まずは1〜2週間 記録を続けてみましょう。']);
+  return ins;
+}
+function buildAiPrompt(a){
+  const wn=['日','月','火','水','木','金','土'];
+  const L=[];
+  L.push('あなたは子どもの運動・学習の習慣化を支援するコーチです。以下は小学1年生の男の子の家庭での日課記録です。データを分析し、(1)良い点 (2)課題 (3)メニューの具体的な改善・進化の提案（既存メニューのレベルアップ案、入れ替え案、新メニュー案）を、保護者向けに提案してください。');
+  L.push('');
+  L.push('# 背景・方針');
+  L.push('- 習い事: サッカー(週2)、空手(週1)、バスケ(週2)。まだ突出した熱中対象はない段階。');
+  L.push('- 教育方針: 強みを伸ばす／いろんな経験をさせる／熱中しないものはスパッと切り、のめり込めるものに投資。学習は暗記でなく概念理解を重視。');
+  L.push('- 身体的特徴: クラスで2番目に背が高い。体幹が弱め。');
+  L.push('- 運用思想: 「枠は厳しく、評価は温かく」。ゼロの日を作らない。3ヶ月ごとにメニュー見直し。');
+  L.push('- 家でできること中心（マンション2階・下が駐車場なので跳躍・ドリブル音はOK）。');
+  L.push('');
+  L.push('# 集計期間');
+  L.push(`${a.start} 〜 ${a.end}（${a.nDays}日間）`);
+  L.push('');
+  L.push('# サマリー');
+  L.push(`- 実施した日: ${a.activeDays}/${a.nDays}日（継続率${Math.round(a.activeRate*100)}%）`);
+  L.push(`- 平均達成率: ${Math.round(a.avgRate*100)}%（毎日${a.all.length}メニュー中）`);
+  L.push(`- 累計クリア数: ${a.totalDone}`);
+  L.push(`- 前半→後半の傾向: 1日あたり ${a.trend>=0?'+':''}${a.trend.toFixed(1)} メニュー`);
+  L.push('');
+  L.push('# メニュー別の実施回数と本人の気持ち（😆もっとやりたい / 🙂ふつう / 😮‍💨いやだった）');
+  a.perArr.forEach(p=>{
+    L.push(`- ${p.task.title}（目安${p.task.min}分）: 実施${p.done}回, 😆${p.love} 🙂${p.ok} 😮‍💨${p.meh}`);
+  });
+  L.push('');
+  if(a.recordProgress.some(r=>r.pts.length)){
+    L.push('# 数値記録の推移');
+    a.recordProgress.forEach(rp=>{
+      if(rp.pts.length)L.push(`- ${rp.task.title}: 最初${rp.first} → 最新${rp.last}（ベスト${rp.best}）`);
+    });
+    L.push('');
+  }
+  L.push('# 曜日別の平均達成メニュー数');
+  L.push(a.dowAvg.map((v,i)=>`${wn[i]}:${v.toFixed(1)}`).join(' / '));
+  L.push('');
+  // 本人の声（宣言・日記）
+  const voices=a.recs.filter(r=>r.v&&(r.v.declaration||r.v.diary)).slice(-10);
+  if(voices.length){
+    L.push('# 本人の声（宣言・ふりかえり日記の抜粋）');
+    voices.forEach(r=>{
+      if(r.v.declaration)L.push(`- ${r.d} 宣言: ${r.v.declaration}`);
+      if(r.v.diary)L.push(`- ${r.d} 日記: ${r.v.diary}`);
+    });
+    L.push('');
+  }
+  L.push('# お願いしたいこと');
+  L.push('1. 上記から読み取れる「強み・熱中の芽」と「つまずき」を指摘してください。');
+  L.push('2. 😆が多いメニューはどう発展させるべきか、具体的なレベルアップ版を提案してください。');
+  L.push('3. 😮‍💨が多い/実施が少ないメニューは、やり方変更・入れ替え・新メニューのどれが良いか提案してください。');
+  L.push('4. この子の年齢・方針・体幹の弱さを踏まえ、次の1ヶ月で試す価値のある新メニューを2〜3個、具体的なやり方つきで提案してください。');
+  return L.join('\n');
+}
+
+/* ===== タブUI ===== */
+function renderTabs(){
+  const defs=[['home','🏠','ホーム'],['report','📋','レポート'],['cheer','💌','おうえん']];
+  document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>
+    `<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')"><span class="ico">${i}</span>${l}</button>`).join('');
+}
+function setTab(t){tab=t;render()}
 
 function render(){
   document.getElementById('date').textContent=fmtJp(today)+' げんざい';
-  const total=Math.max(allTasks().length,1);
+  renderTabs();
+  const v=document.getElementById('view');
+  if(tab==='home')v.innerHTML=viewHome();
+  else if(tab==='report')v.innerHTML=viewReport();
+  else v.innerHTML=viewCheer();
+}
 
-  // 今週（直近7日）
-  let weekDone=0,activeDays=0;
-  const wd=[];
+/* ===== ホーム ===== */
+function viewHome(){
+  const total=Math.max(allTasks().length,1);
+  // 今日
+  const td=days[today]||{checks:{}};
+  const doneToday=Object.keys(td.checks||{}).length;
+  const all=allTasks();
+  const todayItems=all.map(t=>{
+    const on=!!(td.checks&&td.checks[t.id]);
+    return `<div class="tb-item"><div class="tb-ic ${on?'on':''}">${on?'✓':t.icon}</div><div class="tb-name ${on?'on':''}">${esc(t.title)}</div></div>`;
+  }).join('');
+
+  // 今週
+  let activeDays=0;const wd=[];
   for(let i=6;i>=0;i--){
     const d=addDays(today,-i);const c=dayDone(d);
-    weekDone+=c;if(c>0)activeDays++;
+    if(c>0)activeDays++;
     const[y,m,dd]=d.split('-').map(Number);
-    wd.push({w:['日','月','火','水','木','金','土'][new Date(y,m-1,dd).getDay()],c,isToday:d===today});
+    wd.push({w:['日','月','火','水','木','金','土'][new Date(y,m-1,dd).getDay()],c,td:d===today});
   }
-  // 連続日数
   let streak=0,cur=today;
   if(dayDone(cur)===0)cur=addDays(cur,-1);
   while(dayDone(cur)>0){streak++;cur=addDays(cur,-1)}
 
-  // 最近の日記
-  const diaries=Object.entries(data.days).filter(([,v])=>v.diary).sort(([a],[b])=>a>b?-1:1).slice(0,5);
-
-  // リフティング等の記録
-  const recTask=allTasks().find(t=>t.recordLabel);
+  const diaries=Object.entries(days).filter(([,v])=>v.diary).sort(([a],[b])=>a>b?-1:1).slice(0,4);
+  const recTask=all.find(t=>t.recordLabel);
   let recordHtml='';
   if(recTask){
-    const pts=Object.entries(data.days).filter(([,v])=>v.records&&v.records[recTask.id]!=null).sort(([a],[b])=>a<b?-1:1);
+    const pts=Object.entries(days).filter(([,v])=>v.records&&v.records[recTask.id]!=null).sort(([a],[b])=>a<b?-1:1);
     if(pts.length){
       const best=Math.max(...pts.map(([,v])=>v.records[recTask.id]));
       const latest=pts[pts.length-1][1].records[recTask.id];
@@ -141,79 +351,97 @@ function render(){
         <div class="record-line">これまでの さいこう： <b>${best}</b> かい</div></div>`;
     }
   }
-
-  const weekHtml=wd.map(x=>`<div class="wd">
-    <div class="wd-circle ${x.c>0?'done':'none'}">${x.c>0?(x.c>=total?'💯':'⭕'):'・'}</div>
-    <div class="wd-lbl">${x.w}</div></div>`).join('');
-
+  const weekHtml=wd.map(x=>`<div class="wd"><div class="wd-circle ${x.c>0?'done':'none'} ${x.td?'tdy':''}">${x.c>0?(x.c>=total?'💯':'⭕'):'・'}</div><div class="wd-lbl">${x.w}</div></div>`).join('');
   const diaryHtml=diaries.length?diaries.map(([d,v])=>`<div class="diary"><div class="dd">${fmtJp(d)}</div><div class="dt">📔 ${esc(v.diary)}</div></div>`).join(''):'<div class="empty">まだ にっきは ないよ</div>';
 
-  const quickBtns=QUICK.map(q=>`<button class="cheer-btn" onclick="sendCheer('${esc(q)}')">${esc(q)}</button>`).join('');
-  const senderOpts=SENDERS.map(s=>`<option value="${s}">${s}</option>`).join('');
-  const sentHtml=cheers.length?cheers.slice(0,8).map(c=>`<div class="sent-item"><div class="si-head">${esc(c.sender)} ・ ${esc(c.time||'')} ${c.read?'（よんでくれたよ✓）':''}</div>${esc(c.message)}</div>`).join(''):'<div class="empty">まだ おうえんは ありません</div>';
-
-  document.getElementById('view').innerHTML=`
+  return `
+    <div class="card">
+      <div class="card-title">☀️ きょうの がんばり</div>
+      <div class="todaybox">
+        <div class="tb-head"><span class="l">${fmtJp(today)}</span><span class="v">${doneToday} / ${total} こ クリア</span></div>
+        <div class="tb-prog"><div class="tb-fill" style="width:${Math.max(doneToday/total*100,4)}%"></div></div>
+        <div class="tb-list">${todayItems}</div>
+      </div>
+    </div>
     <div class="card">
       <div class="big-stat">
         <div class="bs"><div class="v">${streak}</div><div class="l">れんぞく日数🔥</div></div>
         <div class="bs"><div class="v">${activeDays}<span style="font-size:20px">/7</span></div><div class="l">こんしゅう がんばった日</div></div>
       </div>
+      <div style="margin-top:14px"><div class="week">${weekHtml}</div>
+      <div class="empty" style="padding:8px 0 0;font-size:13px">💯=ぜんぶ ⭕=がんばった ・=おやすみ</div></div>
     </div>
-
-    <div class="card">
-      <div class="card-title">📅 こんしゅうの ようす</div>
-      <div class="week">${weekHtml}</div>
-      <div class="empty" style="padding:8px 0 0;font-size:13px">💯=ぜんぶ ⭕=がんばった ・=おやすみ</div>
-    </div>
-
     ${recordHtml}
-
-    <div class="card">
-      <div class="card-title">📔 さいきん できたこと</div>
-      ${diaryHtml}
-    </div>
-
-    <div class="card">
-      <div class="card-title">💌 おうえんを おくる</div>
-      <div class="cheer-area">
-        <div class="sender-row"><label>だれから：</label>
-          <select class="sender-sel" id="sender">${senderOpts}</select></div>
-        <div class="cheer-btns">${quickBtns}</div>
-        <div class="free-row">
-          <input class="free-input" id="free" placeholder="じゆうに かいてね">
-          <button class="send-btn" onclick="sendFree()">おくる</button>
-        </div>
-      </div>
-      <div class="sent-list">${sentHtml}</div>
-    </div>
-
-    <button class="refresh" onclick="loadAll()">↻ さいしんに こうしん</button>
+    <div class="card"><div class="card-title">📔 さいきん できたこと</div>${diaryHtml}</div>
+    <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>
   `;
 }
 
-function toast(msg){
-  const t=document.createElement('div');t.className='toast';t.textContent=msg;
-  document.getElementById('toast-area').appendChild(t);
-  setTimeout(()=>t.remove(),2200);
-}
+/* ===== レポート ===== */
+function viewReport(){
+  const a=analyzePeriod(repDays);
+  const pct=Math.round(a.avgRate*100), actPct=Math.round(a.activeRate*100);
+  const trendTxt=a.trend>0.2?['up','▲ ぐんぐん のびてる']:a.trend<-0.2?['dn','▼ ちょっと おやすみ気味']:['fl','→ あんてい'];
+  const ins=buildInsights(a);
+  const showN=Math.min(a.nDays,14);
+  const barDays=a.recs.slice(-showN);
+  const maxC=Math.max(a.all.length,1);
+  const bars=barDays.map(r=>{const c=r.v?Object.keys(r.v.checks||{}).length:0;return `<div class="mini-col"><div class="mini-bar" style="height:${c/maxC*100}%"></div><div class="mini-d">${+r.d.slice(8)}</div></div>`}).join('');
+  const insHtml=ins.map(([type,ico,txt])=>`<div class="ins-item"><span class="ins-ico">${ico}</span><span>${esc(txt)}</span></div>`).join('');
+  const pBtn=(n,l)=>`<button class="rep-pill ${repDays===n?'on':''}" onclick="setRepDays(${n})">${l}</button>`;
 
+  return `
+    <div class="card">
+      <div class="card-title">📋 がんばり レポート</div>
+      <div style="font-size:13px;color:#9ca3af;margin-bottom:12px">${fmtJp(a.start)} 〜 ${fmtJp(a.end)}（${a.nDays}日間）</div>
+      <div class="rep-period">${pBtn(7,'1しゅうかん')}${pBtn(30,'1かげつ')}${pBtn(90,'3かげつ')}</div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kl">がんばった日</div><div class="kv">${a.activeDays}<span style="font-size:14px">/${a.nDays}</span></div><div class="kt ${actPct>=70?'up':actPct>=40?'fl':'dn'}">けいぞく ${actPct}%</div></div>
+        <div class="kpi"><div class="kl">へいきん たっせい</div><div class="kv">${pct}<span style="font-size:14px">%</span></div><div class="kt ${trendTxt[0]}">${trendTxt[1]}</div></div>
+        <div class="kpi"><div class="kl">クリアした 合計</div><div class="kv">${a.totalDone}</div><div class="kt fl">こ</div></div>
+        <div class="kpi"><div class="kl">さいこう きろく</div><div class="kv">${a.recordProgress[0]&&a.recordProgress[0].best!=null?a.recordProgress[0].best:'—'}</div><div class="kt fl">${a.recordProgress[0]?esc(a.recordProgress[0].task.title):'—'}</div></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">📊 たっせいの ながれ（${showN}日）</div><div class="mini-bars">${bars}</div></div>
+    <div class="card"><div class="card-title">🔍 きづいたこと</div>${insHtml}</div>
+    <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>
+  `;
+}
+function setRepDays(n){repDays=n;render()}
+
+/* ===== おうえん ===== */
+function viewCheer(){
+  const quickBtns=QUICK.map(q=>`<button class="cheer-btn" onclick="sendCheer('${esc(q)}')">${esc(q)}</button>`).join('');
+  const senderOpts=SENDERS.map(s=>`<option value="${s}">${s}</option>`).join('');
+  const sentHtml=cheers.length?cheers.slice(0,12).map(c=>`<div class="sent-item"><div class="si-head">${esc(c.sender)} ・ ${esc(c.time||'')} ${c.read?'（よんでくれたよ✓）':''}</div>${esc(c.message)}</div>`).join(''):'<div class="empty">まだ おうえんは ありません</div>';
+  return `
+    <div class="card">
+      <div class="card-title">💌 おうえんを おくる</div>
+      <div class="sender-row"><label>だれから：</label><select class="sender-sel" id="sender">${senderOpts}</select></div>
+      <div class="cheer-btns">${quickBtns}</div>
+      <div class="free-row"><input class="free-input" id="free" placeholder="じゆうに かいてね"><button class="send-btn" onclick="sendFree()">おくる</button></div>
+    </div>
+    <div class="card"><div class="card-title">📜 これまでの おうえん</div>${sentHtml}</div>
+  `;
+}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.getElementById('toast-area').appendChild(t);setTimeout(()=>t.remove(),2200)}
 async function sendCheer(msg){
   const sender=(document.getElementById('sender')||{}).value||'おうえん';
-  try{
-    await post({action:'sendCheer',sender,message:msg});
-    toast('💌 おくりました！');
-    // 楽観的に表示へ追加
-    cheers.unshift({sender,message:msg,time:'いま',read:false});
-    render();
-  }catch(e){toast('おくれませんでした…')}
+  try{await post({action:'sendCheer',sender,message:msg});toast('💌 おくりました！');cheers.unshift({sender,message:msg,time:'いま',read:false});render();}
+  catch(e){toast('おくれませんでした…')}
 }
-function sendFree(){
+function sendFree(){const el=document.getElementById('free');const v=(el.value||'').trim();if(!v){toast('メッセージを かいてね');return}sendCheer(v);el.value=''}
+
+/* ===== 自動更新 ===== */
+function tickAutoRefresh(){
+  // 入力中（自由記述にフォーカス）や送信直後は邪魔しない
   const el=document.getElementById('free');
-  const v=(el.value||'').trim();
-  if(!v){toast('メッセージを かいてね');return}
-  sendCheer(v);
-  el.value='';
+  if(el&&document.activeElement===el)return;
+  loadAll(true);
 }
+setInterval(tickAutoRefresh, AUTO_REFRESH_MS);
+// 画面に戻ってきたとき即更新
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastFetch>5000)loadAll(true)});
 
 loadAll();
 </script>
