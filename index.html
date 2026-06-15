@@ -95,6 +95,15 @@ body{
 .diary-row{border-left:4px solid #fdba74;padding:3px 0 3px 10px;margin-bottom:8px;font-size:13px}
 .diary-d{font-size:10px;color:#94a3b8;font-weight:700}
 .diary-t{font-weight:700;color:#334155}
+.clog-list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto}
+.clog-item{display:flex;gap:10px;font-size:13px;border-bottom:1px solid #f1f5f9;padding-bottom:8px}
+.clog-t{font-size:10px;color:#94a3b8;font-weight:700;width:74px;flex-shrink:0;line-height:1.5}
+.clog-body{flex:1;line-height:1.5}
+.clog-type{font-size:11px;font-weight:900;border-radius:99px;padding:1px 8px}
+.clog-type.add{background:#dcfce7;color:#15803d}
+.clog-type.edit{background:#dbeafe;color:#1d4ed8}
+.clog-type.del{background:#fee2e2;color:#dc2626}
+.clog-detail{font-size:11px;color:#64748b;margin-top:2px}
 svg.line-chart{width:100%;height:160px}
 
 /* settings */
@@ -122,6 +131,8 @@ svg.line-chart{width:100%;height:160px}
 .sch-toolbar .st-title{font-size:15px;font-weight:900;color:#fff}
 .sch-addbtn{border:none;font-family:inherit;font-weight:900;font-size:12px;border-radius:99px;padding:8px 14px;background:linear-gradient(90deg,#0ea5e9,#6366f1);color:#fff;cursor:pointer}
 .grid-wrap{background:rgba(255,255,255,.96);border-radius:14px;margin-top:12px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.25);max-height:70vh}
+.now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:5;pointer-events:none}
+.now-dot{position:absolute;left:-1px;top:-3px;width:8px;height:8px;border-radius:50%;background:#ef4444}
 .grid{position:relative;display:grid;grid-template-columns:38px repeat(7,1fr);min-width:560px}
 .gh{position:sticky;top:0;z-index:3;background:#1e1b4b;color:#fff;font-size:11px;font-weight:900;text-align:center;padding:6px 2px;border-left:1px solid rgba(255,255,255,.1)}
 .gh.today{background:#6366f1}
@@ -325,6 +336,14 @@ let cheers=load('maiken_cheers_v1',[]);   // 受信した応援
 let plans=load('maiken_plans_v1',[]);     // 週間スケジュール
 let memos=load('maiken_memos_v1',[]);     // 日記・メモ [{id,time,title,body,shared}]
 let memoView=null;
+let changelog=load('maiken_changelog_v1',[]); // メニュー変更履歴 [{t,type,name,detail}]
+function saveChangelog(){try{localStorage.setItem('maiken_changelog_v1',JSON.stringify(changelog))}catch(e){}queueLogSync()}
+let logSyncTimer=null;
+function queueLogSync(){if(!cloud.url)return;clearTimeout(logSyncTimer);logSyncTimer=setTimeout(pushLog,1500);}
+async function pushLog(){if(!cloud.url)return;try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveLog',secret:SYNC_SECRET,changelog})})}catch(e){}}
+async function fetchLog(){if(!cloud.url)return;try{const sep=cloud.url.includes('?')?'&':'?';const r=await fetch(cloud.url+sep+'action=changelog&secret='+encodeURIComponent(SYNC_SECRET));const j=await r.json();if(j&&j.changelog){changelog=j.changelog;try{localStorage.setItem('maiken_changelog_v1',JSON.stringify(changelog))}catch(e){}if(tab==='log')render();}}catch(e){}}
+function nowTs(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')+' '+String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+function logChange(type,name,detail){changelog.unshift({t:nowTs(),type,name,detail:detail||''});if(changelog.length>500)changelog=changelog.slice(0,500);saveChangelog();}
 function saveMemos(){try{localStorage.setItem('maiken_memos_v1',JSON.stringify(memos))}catch(e){}queueMemoSync()}
 let memoSyncTimer=null;
 function queueMemoSync(){if(!cloud.url)return;clearTimeout(memoSyncTimer);memoSyncTimer=setTimeout(pushMemos,1500);}
@@ -467,7 +486,7 @@ const ymd=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(
 const addDays=(s,n)=>{const[y,m,d]=s.split('-').map(Number);return ymd(new Date(y,m-1,d+n))};
 const fmtJp=s=>{const[y,m,d]=s.split('-');const w=['日','月','火','水','木','金','土'][new Date(+y,+m-1,+d).getDay()];return`${+m}月${+d}日（${w}）`};
 let today=ymd();
-setInterval(()=>{const n=ymd();if(n!==today){today=n;render()}},60000);
+setInterval(()=>{const n=ymd();if(n!==today){today=n;render();}else if(tab==='schedule'){render();}},60000);
 
 /* ── helpers ── */
 const allTasks=()=>[...tasks.morning,...tasks.evening];
@@ -517,7 +536,9 @@ window.act={
   },
   remove(section,i){
     if(!confirm('このメニューを けしますか？\n（過去の記録は残ります）'))return;
-    const rid=tasks[section][i].id;tasks[section].splice(i,1);if(imgs[rid]){delete imgs[rid];saveImgs()}saveTasks();render();
+    const t=tasks[section][i];const rid=t.id;
+    logChange('削除',t.title,'');
+    tasks[section].splice(i,1);if(imgs[rid]){delete imgs[rid];saveImgs()}saveTasks();render();
   },
   saveEdit(){
     const g=id=>document.getElementById(id).value;
@@ -530,8 +551,22 @@ window.act={
     };
     const rl=g('f-rec').trim();if(rl)item.recordLabel=rl;
     const vd=g('f-video').trim();if(vd)item.video=vd;
-    if(editing.index===-1)tasks[editing.section].push(item);
-    else tasks[editing.section][editing.index]=item;
+    if(editing.index===-1){
+      logChange('追加',item.title,(item.min?item.min+'分':'')+(item.recordLabel?' / 記録:'+item.recordLabel:''));
+      tasks[editing.section].push(item);
+    }else{
+      const before=tasks[editing.section][editing.index];
+      const diffs=[];
+      if(before.title!==item.title)diffs.push('タイトル「'+before.title+'」→「'+item.title+'」');
+      if(before.desc!==item.desc)diffs.push('やり方を変更');
+      if(before.min!==item.min)diffs.push('時間 '+before.min+'分→'+item.min+'分');
+      if((before.recordLabel||'')!==(item.recordLabel||''))diffs.push('記録ラベル変更');
+      if((before.video||'')!==(item.video||''))diffs.push('動画URL変更');
+      if(pendingImg!==undefined&&pendingImg!==null)diffs.push('図解画像を更新');
+      if(pendingImg===null&&imgs[item.id])diffs.push('図解画像を削除');
+      if(diffs.length)logChange('変更',item.title,diffs.join(' / '));
+      tasks[editing.section][editing.index]=item;
+    }
     if(pendingImg!==undefined){
       if(pendingImg===null)delete imgs[item.id];
       else imgs[item.id]=pendingImg;
@@ -1178,7 +1213,16 @@ function viewSchedule(){
     });
     const notes=dayNotes[d]||[];
     const noteBadge=notes.length?`<span class="gh-badge">📌${notes.length}</span>`:'<span class="gh-badge add">＋</span>';
-    cols+=`<div class="gcol"><div class="gh ${d===todayDow?'today':''}" onclick="act.openDayNotes(${d})" style="cursor:pointer">${wn[d]} ${noteBadge}</div><div style="position:relative">${cells}${evs}</div></div>`;
+    // 今日だけ、現在時刻の赤いライン
+    let nowLine='';
+    if(d===todayDow){
+      const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();
+      if(nowMin>=START*60&&nowMin<=END*60){
+        const topPx=(nowMin-START*60)/STEP*slotH;
+        nowLine=`<div class="now-line" style="top:${topPx}px"><span class="now-dot"></span></div>`;
+      }
+    }
+    cols+=`<div class="gcol"><div class="gh ${d===todayDow?'today':''}" onclick="act.openDayNotes(${d})" style="cursor:pointer">${wn[d]} ${noteBadge}</div><div style="position:relative">${cells}${evs}${nowLine}</div></div>`;
   }
 
   // 色の凡例
@@ -1390,6 +1434,14 @@ function viewReport(){
   `;
 }
 
+function changelogHtml(){
+  if(!changelog||!changelog.length)return '<div class="empty">メニューを 追加・変更すると ここに きろくが のこります</div>';
+  const icon={'追加':'➕','変更':'✏️','削除':'🗑'};
+  return '<div class="clog-list">'+changelog.slice(0,30).map(function(e){
+    return `<div class="clog-item"><div class="clog-t">${esc(e.t)}</div><div class="clog-body"><span class="clog-type ${e.type==='削除'?'del':e.type==='追加'?'add':'edit'}">${icon[e.type]||''} ${esc(e.type)}</span> <b>${esc(e.name)}</b>${e.detail?`<div class="clog-detail">${esc(e.detail)}</div>`:''}</div></div>`;
+  }).join('')+'</div>';
+}
+
 // きろくタブ：レポートとログを重複なく1本に統合
 function viewReportAndLog(){
   const a=analyzePeriod(repDays);
@@ -1458,6 +1510,7 @@ function viewReportAndLog(){
     <div class="insight"><div class="it">🔍 自動分析と気づき</div>${insHtml}</div>
     <div class="card"><div class="card-title">🔥 ねっちゅうシグナル（おうちのひと向け）</div>${sigHtml}</div>
     <div class="card"><div class="card-title">📔 さいきんの きろく</div>${dHtml}</div>
+    <div class="card"><div class="card-title">📝 メニューの あゆみ（変更りれき）</div>${changelogHtml()}</div>
     <div class="rep-btns">
       <button class="rep-btn print" onclick="act.printReport()">🖨 レポートを印刷 / PDF保存</button>
       <button class="rep-btn ai" onclick="act.aiReport()">🤖 AIに相談する文章をコピー</button>
@@ -1682,7 +1735,7 @@ function renderOverlay(){
 }
 
 render();
-if(cloud.url){autoPull();fetchCheers();fetchPlans();fetchMemos();}
+if(cloud.url){autoPull();fetchCheers();fetchPlans();fetchMemos();fetchLog();}
 </script>
 </body>
 </html>

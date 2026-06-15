@@ -85,6 +85,8 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .fleg{display:flex;align-items:center;gap:5px;font-size:12px;color:#6b7280;font-weight:700}
 .fleg .fld{width:13px;height:13px;border-radius:4px}
 .fgrid-wrap{overflow:auto;border-radius:12px;border:1px solid #fce7f3;max-height:66vh}
+.fnow-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:5;pointer-events:none}
+.fnow-dot{position:absolute;left:-1px;top:-3px;width:8px;height:8px;border-radius:50%;background:#ef4444}
 .fgrid{position:relative;display:grid;grid-template-columns:40px repeat(7,1fr);min-width:600px}
 .fgh{position:sticky;top:0;z-index:3;background:#be185d;color:#fff;font-size:13px;font-weight:900;text-align:center;padding:8px 2px;border-left:1px solid rgba(255,255,255,.12)}
 .fgh.today{background:#ec4899}
@@ -448,7 +450,15 @@ function viewSchedule(){
     const notes=dayNotes[d]||[];
     // メモの有無に関わらず同じ高さの行を確保（グリッドのズレ防止）
     let noteHtml='<div class="fgnotes">'+notes.map(n=>`<div class="fgnote-block" onclick="openFamNote(${d},'${n.id}')">📌 ${esc(n.title)}</div>`).join('')+'</div>';
-    cols+=`<div class="fcol"><div class="fgh ${d===todayDow?'today':''}">${wn[d]}</div>${noteHtml}<div style="position:relative">${cells}${evs}</div></div>`;
+    let nowLine='';
+    if(d===todayDow){
+      const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();
+      if(nowMin>=START*60&&nowMin<=END*60){
+        const topPx=(nowMin-START*60)/STEP*slotH;
+        nowLine=`<div class="fnow-line" style="top:${topPx}px"><span class="fnow-dot"></span></div>`;
+      }
+    }
+    cols+=`<div class="fcol"><div class="fgh ${d===todayDow?'today':''}">${wn[d]}</div>${noteHtml}<div style="position:relative">${cells}${evs}${nowLine}</div></div>`;
   }
   // 凡例
   const used={};plans.forEach(p=>{if(p.color)used[p.color]=true});
@@ -589,6 +599,7 @@ function tickAutoRefresh(){
   loadAll(true);
 }
 setInterval(tickAutoRefresh, AUTO_REFRESH_MS);
+setInterval(function(){if(tab==='schedule')render();},60000);
 // 画面に戻ってきたとき即更新
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastFetch>5000)loadAll(true)});
 
