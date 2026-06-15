@@ -59,6 +59,7 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .send-btn{border:none;font-family:inherit;font-weight:900;font-size:16px;border-radius:12px;padding:0 22px;background:linear-gradient(120deg,#ec4899,#f97316);color:#fff;cursor:pointer}
 .sent-item{background:#fdf2f8;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:15px}
 .sent-item .si-head{font-size:12px;color:#9ca3af;font-weight:700;margin-bottom:2px}
+.reaction-back{display:inline-block;margin-top:8px;background:linear-gradient(120deg,#fce7f3,#fed7aa);color:#be185d;font-weight:900;font-size:15px;border-radius:99px;padding:6px 14px}
 .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#be185d;color:#fff;font-weight:900;border-radius:99px;padding:12px 26px;z-index:90;font-size:16px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .loading{text-align:center;padding:50px 0;color:#be185d;font-weight:900;font-size:20px}
 .empty{text-align:center;color:#9ca3af;padding:16px;font-size:15px}
@@ -114,7 +115,9 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .tabbar-in{max-width:620px;margin:0 auto;display:flex}
 .tab{flex:1;padding:10px 0 12px;text-align:center;font-size:13px;font-weight:900;color:#d8b4c8;cursor:pointer;border:none;background:none;font-family:inherit}
 .tab .ico{font-size:24px;display:block}
-.tab.on{color:#ec4899}
+".tab.on{color:#ec4899}
+.tab{position:relative}
+.tab-dot{position:absolute;top:-2px;right:-8px;width:9px;height:9px;background:#ef4444;border-radius:50%;border:2px solid #fff}
 /* modal (中央に浮かぶ詳細ウィンドウ) */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px}
 .modal{background:#fff;border-radius:20px;padding:22px;width:100%;max-width:440px;max-height:84vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
@@ -155,6 +158,26 @@ let plans=[];
 let weekStart=1;
 let dayNotes={};
 let sharedMemos=[];
+// 未読バッジ：前回みた時の指紋を localStorage に保存し、変化があればドット表示
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function memoSig(){ // 共有メモの指紋（件数＋最新の時刻＋最新id）
+  if(!sharedMemos.length)return '0';
+  return sharedMemos.length+'|'+(sharedMemos[0].time||'')+'|'+(sharedMemos[0].id||'');
+}
+function planSig(){ // 予定の指紋（内容のハッシュ的な連結）
+  if(!plans||!plans.length)return '0';
+  return plans.map(function(p){return p.id+p.day+p.start+p.end+p.title+(p.place||'')+(p.memo||'')+(p.color||'');}).sort().join('~');
+}
+function hasUnread(tabKey){
+  const sig=tabKey==='memo'?memoSig():planSig();
+  const seen=lsGet('fam_seen_'+tabKey);
+  return seen!==null && seen!==sig; // 初回(null)はドットを出さない
+}
+function markSeen(tabKey){
+  const sig=tabKey==='memo'?memoSig():planSig();
+  lsSet('fam_seen_'+tabKey,sig);
+}
 let famNote=null;
 function mapLinkF(place){if(!place)return '';return /^https?:\/\//i.test(place)?place:('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place));}
 function linkify(text){const e=(text||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return e.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:#2563eb;word-break:break-all">$1</a>').replace(/\n/g,'<br>');}
@@ -186,6 +209,12 @@ async function loadAll(silent){
     if(pl&&pl.dayNotes)dayNotes=normNotes(pl.dayNotes);
     if(mm&&mm.memos)sharedMemos=mm.memos;
     lastFetch=Date.now();
+    // 初回だけ：今の状態を基準値として記録（既読化）。以降の更新で未読ドットが出る。
+    if(lsGet('fam_seen_memo')===null)markSeen('memo');
+    if(lsGet('fam_seen_schedule')===null)markSeen('schedule');
+    // 今開いているタブは見ているので既読化
+    if(tab==='memo')markSeen('memo');
+    if(tab==='schedule')markSeen('schedule');
     render();
   }catch(e){
     if(!silent)document.getElementById('view').innerHTML='<div class="card"><div class="empty">うまく よみこめませんでした。<br>でんぱの よい ところで もういちど ひらいてみてください。</div><button class="refresh" onclick="loadAll()">↻ もういちど</button></div>';
@@ -349,10 +378,12 @@ function buildAiPrompt(a){
 /* ===== タブUI ===== */
 function renderTabs(){
   const defs=[['home','🏠','ホーム'],['schedule','🗓','よてい'],['memo','📝','メモ'],['report','📋','レポート'],['cheer','💌','おうえん']];
-  document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>
-    `<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')"><span class="ico">${i}</span>${l}</button>`).join('');
+  document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>{
+    const dot=((k==='memo'||k==='schedule')&&hasUnread(k))?'<span class="tab-dot"></span>':'';
+    return `<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')"><span class="ico">${i}${dot}</span>${l}</button>`;
+  }).join('');
 }
-function setTab(t){tab=t;render()}
+function setTab(t){tab=t;if(t==='memo'||t==='schedule')markSeen(t);render()}
 
 function openFamPlan(id){
   const p=(plans||[]).find(x=>x.id===id);if(!p)return;
@@ -577,7 +608,7 @@ function setRepDays(n){repDays=n;render()}
 function viewCheer(){
   const quickBtns=QUICK.map(q=>`<button class="cheer-btn" onclick="sendCheer('${esc(q)}')">${esc(q)}</button>`).join('');
   const senderOpts=SENDERS.map(s=>`<option value="${s}">${s}</option>`).join('');
-  const sentHtml=cheers.length?cheers.slice(0,12).map(c=>`<div class="sent-item"><div class="si-head">${esc(c.sender)} ・ ${esc(c.time||'')} ${c.read?'（よんでくれたよ✓）':''}</div>${esc(c.message)}</div>`).join(''):'<div class="empty">まだ おうえんは ありません</div>';
+  const sentHtml=cheers.length?cheers.slice(0,12).map(c=>`<div class="sent-item"><div class="si-head">${esc(c.sender)} ・ ${esc(c.time||'')} ${c.read?'（よんでくれたよ✓）':''}</div>${esc(c.message)}${c.reaction?`<div class="reaction-back">たいちゃんから ${esc(c.reaction)}</div>`:''}</div>`).join(''):'<div class="empty">まだ おうえんは ありません</div>';
   return `
     <div class="card">
       <div class="card-title">💌 おうえんを おくる</div>
