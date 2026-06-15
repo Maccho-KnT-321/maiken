@@ -115,6 +115,11 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .tab{flex:1;padding:10px 0 12px;text-align:center;font-size:13px;font-weight:900;color:#d8b4c8;cursor:pointer;border:none;background:none;font-family:inherit}
 .tab .ico{font-size:24px;display:block}
 .tab.on{color:#ec4899}
+/* modal (中央に浮かぶ詳細ウィンドウ) */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px}
+.modal{background:#fff;border-radius:20px;padding:22px;width:100%;max-width:440px;max-height:84vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal h3{font-size:18px;margin-bottom:6px;color:#1e293b}
+.m-btns{display:flex;gap:10px;margin-top:14px}
 </style>
 </head>
 <body>
