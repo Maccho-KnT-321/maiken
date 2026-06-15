@@ -133,7 +133,27 @@ svg.line-chart{width:100%;height:160px}
 .gcell{height:5px;border-top:none;cursor:pointer}
 .gcell.hour{border-top:1px solid #d8def0}
 .gcell.half{border-top:1px solid #f1f3f9}
-.gcell:active{background:#eef2ff}
+".gcell:active{background:#eef2ff}
+.gnotes{background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:3px;height:46px;overflow-y:auto;box-sizing:border-box}
+.gnotes-spacer{height:46px;border-bottom:1px solid #e2e8f0;box-sizing:border-box}
+.gnote-block{font-size:9px;line-height:1.25;padding:3px 4px;margin-bottom:2px;background:#fff7ed;color:#9a3412;font-weight:700;border-radius:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gnote-add{font-size:9px;color:#cbd5e1;text-align:center;cursor:pointer;padding:1px}
+.note-body{font-size:13px;line-height:1.8;color:#334155;white-space:pre-wrap;word-break:break-word;background:#f8fafc;border-radius:10px;padding:12px;margin:8px 0;max-height:300px;overflow:auto}
+.memo-head{display:flex;align-items:center;justify-content:space-between;margin-top:16px}
+.memo-h-title{font-size:17px;font-weight:900;color:#fff}
+.memo-add{border:none;font-family:inherit;font-weight:900;font-size:12px;border-radius:99px;padding:9px 16px;background:linear-gradient(90deg,#0ea5e9,#14b8a6);color:#fff;cursor:pointer}
+.memo-list{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.memo-card{background:rgba(255,255,255,.96);border-radius:14px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer}
+.memo-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.memo-card-title{font-weight:900;font-size:15px;color:#1e293b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.memo-share-badge{font-size:10px;font-weight:700;color:#0d9488;background:#ccfbf1;border-radius:99px;padding:3px 9px;flex-shrink:0}
+.memo-card-time{font-size:11px;color:#94a3b8;font-weight:700;margin-top:2px}
+.memo-card-prev{font-size:13px;color:#64748b;margin-top:6px;line-height:1.5}
+.memo-share-row{display:flex;align-items:center;gap:10px;background:#f0fdfa;border:2px solid #99f6e4;border-radius:12px;padding:12px;margin:6px 0 4px;cursor:pointer;font-weight:700;color:#0f766e;font-size:14px}
+.memo-switch{width:46px;height:26px;border-radius:99px;background:#cbd5e1;position:relative;flex-shrink:0;transition:background .2s}
+.memo-switch.on{background:#14b8a6}
+.memo-knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.memo-switch.on .memo-knob{left:23px}
 .timecol{position:sticky;left:0;z-index:2;background:rgba(255,255,255,.96)}
 .ev{position:absolute;left:2px;right:2px;border-radius:6px;padding:2px 5px;font-size:10px;color:#fff;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2);line-height:1.25}
 .ev .et{font-weight:900;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -185,6 +205,10 @@ svg.line-chart{width:100%;height:160px}
 .rep-btn.ai{background:linear-gradient(90deg,#7c3aed,#db2777);color:#fff}
 .rep-btn.sub{background:#e2e8f0;color:#475569}
 .rep-note{font-size:11px;color:#cbd5e1;line-height:1.7;margin-top:10px}
+.log-section-label{font-size:13px;font-weight:900;color:#fff;margin:18px 0 4px;padding-left:4px;opacity:.85}
+.logsub-switch{display:flex;gap:8px;margin-top:14px;background:rgba(255,255,255,.1);padding:5px;border-radius:14px}
+.logsub-btn{flex:1;border:none;font-family:inherit;font-weight:900;font-size:14px;border-radius:10px;padding:11px;cursor:pointer;background:transparent;color:rgba(255,255,255,.65)}
+.logsub-btn.on{background:#fff;color:#4338ca;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .mini-bars{display:flex;align-items:flex-end;gap:5px;height:90px;margin-top:8px}
 .mini-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
 .mini-bar{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#38bdf8,#6366f1);min-height:2px}
@@ -289,10 +313,35 @@ let tab='today';
 let editing=null;
 let pendingImg;          // 編集中の画像（undefined=変更なし, null=削除, 文字列=新画像）
 let repDays=30;          // レポート対象期間
+let logSub='report';     // きろくタブ内の表示 'report'|'log'
 let cheers=load('maiken_cheers_v1',[]);   // 受信した応援
 let plans=load('maiken_plans_v1',[]);     // 週間スケジュール
+let memos=load('maiken_memos_v1',[]);     // 日記・メモ [{id,time,title,body,shared}]
+let memoView=null;
+function saveMemos(){try{localStorage.setItem('maiken_memos_v1',JSON.stringify(memos))}catch(e){}queueMemoSync()}
+let memoSyncTimer=null;
+function queueMemoSync(){if(!cloud.url)return;clearTimeout(memoSyncTimer);memoSyncTimer=setTimeout(pushMemos,1500);}
+async function pushMemos(){if(!cloud.url)return;try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveMemos',secret:SYNC_SECRET,memos})})}catch(e){}}
+async function fetchMemos(){if(!cloud.url)return;try{const sep=cloud.url.includes('?')?'&':'?';const r=await fetch(cloud.url+sep+'action=memos&secret='+encodeURIComponent(SYNC_SECRET));const j=await r.json();if(j&&j.memos){memos=j.memos;try{localStorage.setItem('maiken_memos_v1',JSON.stringify(memos))}catch(e){}if(tab==='memo')render();}}catch(e){}}
 let weekStart=load('maiken_weekstart_v1',1); // 週の始まり 0=日 1=月 …（既定:月）
 function saveWeekStart(){try{localStorage.setItem('maiken_weekstart_v1',JSON.stringify(weekStart))}catch(e){}queuePlanSync()}
+let dayNotes=load('maiken_daynotes_v1',{}); // {0:[{id,title,body}], …} 曜日ごとのメモブロック
+let noteView=null;
+// 旧形式（文字列）からの移行
+(function migrateNotes(){let changed=false;Object.keys(dayNotes).forEach(d=>{if(typeof dayNotes[d]==='string'){const t=dayNotes[d].trim();dayNotes[d]=t?[{id:'n'+d+'_old',title:t.split(/\n/)[0].slice(0,20)||'メモ',body:t}]:[];changed=true;}});if(changed){try{localStorage.setItem('maiken_daynotes_v1',JSON.stringify(dayNotes))}catch(e){}}})();
+function saveDayNotes(){try{localStorage.setItem('maiken_daynotes_v1',JSON.stringify(dayNotes))}catch(e){}queuePlanSync()}
+// 住所/場所 → Googleマップのリンク（http(s)で始まればそのまま使う）
+function mapLink(place){
+  if(!place)return '';
+  const isUrl=/^https?:\/\//i.test(place);
+  const href=isUrl?place:('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place));
+  return href;
+}
+// 本文中のURLを安全にリンク化
+function linkify(text){
+  const esc1=esc(text);
+  return esc1.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:#2563eb;word-break:break-all">$1</a>').replace(/\n/g,'<br>');
+}
 let schView=null;                          // 編集中の予定
 const PLAN_COLORS=[
   {name:'あお（学校）',c:'#3b82f6'},
@@ -312,7 +361,7 @@ function queuePlanSync(){
 }
 async function pushPlans(){
   if(!cloud.url)return;
-  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans,weekStart})})}catch(e){}
+  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans,weekStart,dayNotes})})}catch(e){}
 }
 async function fetchPlans(){
   if(!cloud.url)return;
@@ -322,7 +371,8 @@ async function fetchPlans(){
     const j=await r.json();
     if(j&&j.plans){plans=j.plans;try{localStorage.setItem('maiken_plans_v1',JSON.stringify(plans))}catch(e){}}
     if(j&&typeof j.weekStart==='number'){weekStart=j.weekStart;try{localStorage.setItem('maiken_weekstart_v1',JSON.stringify(weekStart))}catch(e){}}
-    if(j&&(j.plans||typeof j.weekStart==='number')&&tab==='schedule')render();
+    if(j&&j.dayNotes){dayNotes=j.dayNotes;try{localStorage.setItem('maiken_daynotes_v1',JSON.stringify(dayNotes))}catch(e){}}
+    if(j&&(j.plans||typeof j.weekStart==='number'||j.dayNotes)&&tab==='schedule')render();
   }catch(e){}
 }
 // time helpers
@@ -483,9 +533,79 @@ window.act={
     saveTasks();editing=null;renderOverlay();render();
   },
   closeModal(){editing=null;renderOverlay()},
+  newMemo(){
+    const now=new Date();
+    const ts=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    memoView={id:'memo'+Date.now(),time:ts,title:'',body:'',shared:false,_isNew:true};
+    renderMemoModal();
+  },
+  openMemo(id){const m=memos.find(x=>x.id===id);if(!m)return;memoView=Object.assign({},m);renderMemoView();},
+  editMemoFromView(){if(!memoView)return;memoView._isNew=false;renderMemoModal();},
+  toggleMemoShare(){if(memoView)memoView.shared=!memoView.shared;renderMemoModal();},
+  saveMemo(){
+    const g=id=>document.getElementById(id);
+    const title=g('memo-title').value.trim();
+    const body=g('memo-body').value;
+    if(!title&&!body.trim()){alert('タイトルか本文を いれてね');return}
+    memoView.title=title||'(タイトルなし)';
+    memoView.body=body;
+    if(memoView._isNew){delete memoView._isNew;memos.unshift(memoView);}
+    else{const i=memos.findIndex(x=>x.id===memoView.id);if(i>=0)memos[i]=memoView;}
+    saveMemos();memoView=null;document.getElementById('overlay').innerHTML='';render();
+  },
+  deleteMemo(){
+    if(!memoView)return;
+    if(!confirm('この メモを けしますか？'))return;
+    memos=memos.filter(x=>x.id!==memoView.id);
+    try{localStorage.setItem('maiken_memos_v1',JSON.stringify(memos))}catch(e){}
+    memoView=null;document.getElementById('overlay').innerHTML='';render();
+    pushMemos(); // 即時にクラウドへ反映（削除が復活しないように）
+  },
+  closeMemo(){memoView=null;document.getElementById('overlay').innerHTML='';},
   setRepDays(n){repDays=n;render()},
+  setLogSub(v){logSub=v;render();},
   /* schedule */
   setWeekStart(v){weekStart=Number(v);saveWeekStart();render();},
+  newNote(d){
+    noteView={day:d,id:'n'+Date.now(),title:'',body:'',_isNew:true};
+    renderNoteModal();
+  },
+  openNote(d,id){
+    const list=dayNotes[d]||[];
+    const n=list.find(x=>x.id===id);
+    if(!n)return;
+    noteView=Object.assign({day:d},n);
+    renderNoteView();
+  },
+  editNoteFromView(){
+    if(!noteView)return;
+    noteView._isNew=false;
+    renderNoteModal();
+  },
+  saveNote(){
+    const g=id=>document.getElementById(id);
+    const title=g('n-title').value.trim();
+    const body=g('n-body').value;
+    if(!title){alert('タイトルを いれてね');return}
+    const d=noteView.day;
+    dayNotes[d]=dayNotes[d]||[];
+    if(noteView._isNew){
+      dayNotes[d].push({id:noteView.id,title,body});
+    }else{
+      const i=dayNotes[d].findIndex(x=>x.id===noteView.id);
+      if(i>=0)dayNotes[d][i]={id:noteView.id,title,body};
+    }
+    saveDayNotes();noteView=null;document.getElementById('overlay').innerHTML='';render();
+  },
+  deleteNote(){
+    if(!noteView)return;
+    if(!confirm('この メモを けしますか？'))return;
+    const d=noteView.day;
+    dayNotes[d]=(dayNotes[d]||[]).filter(x=>x.id!==noteView.id);
+    if(!dayNotes[d].length)delete dayNotes[d];
+    saveDayNotes();noteView=null;document.getElementById('overlay').innerHTML='';render();
+  },
+  closeNote(){noteView=null;document.getElementById('overlay').innerHTML='';},
   toggleDay(d){
     if(!schView)return;
     schView._days=schView._days||[schView.day];
@@ -750,9 +870,9 @@ function celebrate(){
 function render(){renderHeader();renderTabs();
   const v=document.getElementById('view');
   if(tab==='today')v.innerHTML=viewToday();
-  else if(tab==='log')v.innerHTML=viewLog();
+  else if(tab==='log')v.innerHTML=viewReportAndLog();
   else if(tab==='schedule')v.innerHTML=viewSchedule();
-  else if(tab==='report')v.innerHTML=viewReport();
+  else if(tab==='memo')v.innerHTML=viewMemo();
   else v.innerHTML=viewSettings();
   updateChip();
 }
@@ -771,7 +891,7 @@ function renderHeader(){
 }
 
 function renderTabs(){
-  const defs=[['today','✅','きょう'],['schedule','🗓','よてい'],['log','📈','きろく'],['report','📋','レポート'],['settings','⚙️','せってい']];
+  const defs=[['today','✅','きょう'],['schedule','🗓','よてい'],['memo','📝','メモ'],['log','📈','きろく'],['settings','⚙️','せってい']];
   document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>
     `<button class="tab ${tab===k?'on':''}" onclick="act.setTab('${k}')"><span class="ico">${i}</span>${l}</button>`).join('');
 }
@@ -1015,7 +1135,7 @@ function viewSchedule(){
   const rows=(END-START)*60/STEP;
 
   // 時間目盛り列
-  let timeCol='<div class="gcol timecol"><div class="gh corner">時</div>';
+  let timeCol='<div class="gcol timecol"><div class="gh corner">時</div><div class="gnotes-spacer"></div>';
   for(let r=0;r<rows;r++){
     const min=START*60+r*STEP;const isHour=min%60===0;const isHalf=min%30===0;
     timeCol+=`<div class="gtime ${isHour?'hour':isHalf?'half':''}">${isHour?toHHMM(min):''}</div>`;
@@ -1044,7 +1164,11 @@ function viewSchedule(){
         ${h>40?`<div class="ep">${esc(p.start)}-${esc(p.end)}</div>`:''}
       </div>`;
     });
-    cols+=`<div class="gcol"><div class="gh ${d===todayDow?'today':''}">${wn[d]}</div><div style="position:relative">${cells}${evs}</div></div>`;
+    const notes=dayNotes[d]||[];
+    let noteHtml='<div class="gnotes">';
+    notes.forEach(n=>{noteHtml+=`<div class="gnote-block" onclick="act.openNote(${d},'${n.id}')" title="タップで詳細">📌 ${esc(n.title)}</div>`;});
+    noteHtml+=`<div class="gnote-add" onclick="act.newNote(${d})">＋メモ</div></div>`;
+    cols+=`<div class="gcol"><div class="gh ${d===todayDow?'today':''}">${wn[d]}</div>${noteHtml}<div style="position:relative">${cells}${evs}</div></div>`;
   }
 
   // 色の凡例
@@ -1064,6 +1188,38 @@ function viewSchedule(){
     <div class="grid-wrap"><div class="grid">${timeCol}${cols}</div></div>
     <div class="rep-note" style="margin-top:10px;color:#cbd5e1">マスを タップ すると その時間で 新規さくせい（曜日は複数えらべます）。よていを タップ すると 1つずつ へんしゅう。学校・習い事・しゅくだい・あそびを 色わけして 1週間を 見える化しよう。</div>
   `;
+}
+
+function renderNoteView(){
+  if(!noteView){document.getElementById('overlay').innerHTML='';return}
+  const wn=['日','月','火','水','木','金','土'];
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeNote()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div style="font-size:11px;color:#94a3b8;font-weight:700">${wn[noteView.day]}よう日 の メモ</div>
+      <h3 style="margin-top:2px">📌 ${esc(noteView.title)}</h3>
+      <div class="note-body">${noteView.body?linkify(noteView.body):'<span style="color:#94a3b8">（本文なし）</span>'}</div>
+      <div class="m-btns">
+        <button class="m-btn m-cancel" style="background:#fee2e2;color:#dc2626" onclick="act.deleteNote()">けす</button>
+        <button class="m-btn m-cancel" onclick="act.closeNote()">とじる</button>
+        <button class="m-btn m-save" onclick="act.editNoteFromView()">へんしゅう</button>
+      </div>
+    </div></div>`;
+}
+
+function renderNoteModal(){
+  if(!noteView){document.getElementById('overlay').innerHTML='';return}
+  const wn=['日','月','火','水','木','金','土'];
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeNote()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>${noteView._isNew?'メモを ついか':'メモを へんしゅう'}（${wn[noteView.day]}よう日）</h3>
+      <div class="f-row"><label>タイトル</label><input id="n-title" value="${esc(noteView.title||'')}" placeholder="例: もちもの / れんらく"></div>
+      <div class="f-row"><label>くわしく（URLを かくと リンクに なります）</label>
+        <textarea id="n-body" style="width:100%;height:140px;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-family:inherit;font-size:14px;line-height:1.7" placeholder="例:&#10;たいそうぎ・あかしろぼうし&#10;https://example.com/おたより">${esc(noteView.body||'')}</textarea></div>
+      <div class="m-btns">
+        <button class="m-btn m-cancel" onclick="act.closeNote()">やめる</button>
+        <button class="m-btn m-save" onclick="act.saveNote()">ほぞん</button>
+      </div>
+    </div></div>`;
 }
 
 function renderPlanModal(){
@@ -1088,7 +1244,7 @@ function renderPlanModal(){
         <div class="f-row"><label>はじまり</label><select id="p-start" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${startSel}</select></div>
         <div class="f-row"><label>おわり</label><select id="p-end" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700">${endSel}</select></div>
       </div>
-      <div class="f-row"><label>ばしょ（任意）</label><input id="p-place" value="${esc(schView.place||'')}" placeholder="例: ○○小学校 / たいいくかん"></div>
+      <div class="f-row"><label>ばしょ（任意・住所をいれると地図リンクに）</label><input id="p-place" value="${esc(schView.place||'')}" placeholder="例: ○○小学校 / 東京都…">${(!schView._isNew&&schView.place)?`<a href="${mapLink(schView.place)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:#2563eb">🗺 地図でひらく</a>`:''}</div>
       <div class="f-row"><label>メモ（任意）</label><input id="p-memo" value="${esc(schView.memo||'')}" placeholder="例: もちもの・コーチ名など"></div>
       <div class="f-row"><label>いろ</label><div class="color-row">${colorRow}</div></div>
       <div class="m-btns">
@@ -1097,6 +1253,57 @@ function renderPlanModal(){
         <button class="m-btn m-save" onclick="act.savePlan()">ほぞん</button>
       </div>
     </div></div>`;
+}
+
+function viewMemo(){
+  const items=memos.length?memos.map(m=>{
+    const preview=(m.body||'').replace(/\n/g,' ').slice(0,40);
+    return `<div class="memo-card" onclick="act.openMemo('${m.id}')">
+      <div class="memo-card-head"><span class="memo-card-title">${esc(m.title)}</span>${m.shared?'<span class="memo-share-badge">👵 共有中</span>':''}</div>
+      <div class="memo-card-time">${esc(m.time||'')}</div>
+      ${preview?`<div class="memo-card-prev">${esc(preview)}${m.body&&m.body.length>40?'…':''}</div>`:''}
+    </div>`;
+  }).join(''):'<div class="empty">まだ メモは ありません。右下の ＋ で つくれます。</div>';
+  return `
+    <div class="memo-head">
+      <div class="memo-h-title">📝 メモ・日記</div>
+      <button class="memo-add" onclick="act.newMemo()">＋ あたらしい メモ</button>
+    </div>
+    <div class="memo-list">${items}</div>
+    <div class="rep-note" style="color:#cbd5e1;margin-top:12px">「👵じいじ・ばあばに共有」をオンにしたメモだけ、じいじ・ばあばアプリのメモタブに表示されます。本文のURLはリンクになります。</div>
+  `;
+}
+
+function renderMemoView(){
+  if(!memoView){document.getElementById('overlay').innerHTML='';return}
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeMemo()"><div class="modal" onclick="event.stopPropagation()">
+    <div style="font-size:11px;color:#94a3b8;font-weight:700">${esc(memoView.time||'')} ${memoView.shared?'・👵共有中':''}</div>
+    <h3 style="margin-top:2px">${esc(memoView.title)}</h3>
+    <div class="note-body">${memoView.body?linkify(memoView.body):'<span style="color:#94a3b8">（本文なし）</span>'}</div>
+    <div class="m-btns">
+      <button class="m-btn m-cancel" style="background:#fee2e2;color:#dc2626" onclick="act.deleteMemo()">けす</button>
+      <button class="m-btn m-cancel" onclick="act.closeMemo()">とじる</button>
+      <button class="m-btn m-save" onclick="act.editMemoFromView()">へんしゅう</button>
+    </div>
+  </div></div>`;
+}
+
+function renderMemoModal(){
+  if(!memoView){document.getElementById('overlay').innerHTML='';return}
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeMemo()"><div class="modal" onclick="event.stopPropagation()">
+    <h3>${memoView._isNew?'あたらしい メモ':'メモを へんしゅう'}</h3>
+    <div class="f-row"><label>タイトル</label><input id="memo-title" value="${esc(memoView.title||'')}" placeholder="例: きょうの できごと"></div>
+    <div class="f-row"><label>本文（URLを かくと リンクに なります）</label>
+      <textarea id="memo-body" style="width:100%;height:180px;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-family:inherit;font-size:14px;line-height:1.7" placeholder="日記や メモを じゆうに…">${esc(memoView.body||'')}</textarea></div>
+    <div class="memo-share-row" onclick="act.toggleMemoShare()">
+      <div class="memo-switch ${memoView.shared?'on':''}"><div class="memo-knob"></div></div>
+      <span>👵 じいじ・ばあばに 共有する</span>
+    </div>
+    <div class="m-btns">
+      <button class="m-btn m-cancel" onclick="act.closeMemo()">やめる</button>
+      <button class="m-btn m-save" onclick="act.saveMemo()">ほぞん</button>
+    </div>
+  </div></div>`;
 }
 
 function viewReport(){
@@ -1151,6 +1358,82 @@ function viewReport(){
       <button class="rep-btn ai" onclick="act.aiReport()">🤖 AIに相談する文章をコピー</button>
     </div>
     <div class="rep-note">「AIに相談する文章をコピー」を押すと、この期間のデータと背景をまとめた文章がコピーされます。ChatGPTやClaude等に貼り付けると、メニューの進化やレベルアップの提案など、より詳しいアドバイスが受け取れます。印刷PDFをAIに添付してもOKです。</div>
+  `;
+}
+
+// きろくタブ：レポートとログを重複なく1本に統合
+function viewReportAndLog(){
+  const a=analyzePeriod(repDays);
+  const pct=Math.round(a.avgRate*100), actPct=Math.round(a.activeRate*100);
+  const trendTxt=a.trend>0.2?['up','▲ 上昇中']:a.trend<-0.2?['dn','▼ 失速ぎみ']:['fl','→ 横ばい'];
+  const ins=buildInsights(a);
+  const total=allTasks().length;
+  const periodBtn=(n,l)=>`<button class="rep-pill ${repDays===n?'on':''}" onclick="act.setRepDays(${n})">${l}</button>`;
+
+  // ヒートマップ（直近14日）
+  let heat='';
+  for(let i=13;i>=0;i--){const dd=addDays(today,-i);const c=Object.keys(getDay(dd).checks).length;const p=total?c/total:0;
+    const bg=p===0?'#f1f5f9':`linear-gradient(135deg,rgba(251,146,60,${.25+p*.75}),rgba(244,63,94,${.2+p*.6}))`;
+    heat+=`<div class="heat-cell"><div class="heat-box" style="background:${bg}" title="${dd}: ${Math.round(p*100)}%"></div><div class="heat-d">${+dd.slice(8)}</div></div>`;}
+
+  // 週間グラフ（1週間の達成）— レポートのmini-barsはこれに統一
+  let bars='';let maxC=1;const wk=[];
+  for(let i=6;i>=0;i--){const dd=addDays(today,-i);const c=Object.keys(getDay(dd).checks).length;wk.push([dd,c]);if(c>maxC)maxC=c;}
+  wk.forEach(([dd,c])=>{bars+=`<div class="bar-col"><div class="bar-v">${c||''}</div><div class="bar" style="height:${c/Math.max(maxC,total)*100}%"></div><div class="bar-d">${dd.slice(5).replace('-','/')}</div></div>`;});
+
+  // 記録の推移
+  const recTask=allTasks().find(t=>t.recordLabel);
+  let recHtml='';
+  if(recTask){
+    const pts=Object.entries(days).filter(([,v])=>v.records&&v.records[recTask.id]!=null).sort(([a],[b])=>a<b?-1:1).slice(-20).map(([dd,v])=>({d:dd.slice(5).replace('-','/'),v:v.records[recTask.id]}));
+    let inner;
+    if(pts.length===0)inner=`<div class="empty">まだ きろくが ないよ。チェックしたら 数字を いれてみよう！</div>`;
+    else{const W=640,H=150,pad=28;const maxV=Math.max(...pts.map(p=>p.v),1);
+      const x=i=>pts.length===1?W/2:pad+i*(W-pad*2)/(pts.length-1);const y=v=>H-18-(v/maxV)*(H-40);
+      const line=pts.map((p,i)=>`${i?'L':'M'}${x(i)},${y(p.v)}`).join(' ');
+      const dots=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="4.5" fill="#8b5cf6"/><text x="${x(i)}" y="${y(p.v)-9}" font-size="11" font-weight="900" fill="#7c3aed" text-anchor="middle">${p.v}</text>`).join('');
+      const labels=pts.map((p,i)=>(pts.length<=8||i%2===0)?`<text x="${x(i)}" y="${H-4}" font-size="9" fill="#94a3b8" text-anchor="middle">${p.d}</text>`:'').join('');
+      inner=`<svg class="line-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${line}" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round"/>${dots}${labels}</svg>`;}
+    recHtml=`<div class="card"><div class="card-title">🏅 ${esc(recTask.title)} の きろく</div>${inner}</div>`;
+  }
+
+  // 熱中シグナル
+  const sig={};
+  Object.values(days).forEach(v=>Object.entries(v.feels||{}).forEach(([id,f])=>{if(!f)return;sig[id]=sig[id]||{love:0,ok:0,meh:0};sig[id][f]++;}));
+  const sigRows=allTasks().map(t=>({t,...(sig[t.id]||{love:0,ok:0,meh:0})})).filter(x=>x.love+x.ok+x.meh>0).sort((a,b)=>b.love-a.love);
+  const sigHtml=sigRows.length===0?`<div class="empty">チェック後の「きもち」が たまると ここに 出ます</div>`
+    :sigRows.map(s=>`<div class="sig-row"><span>${s.t.icon}</span><span class="name">${esc(s.t.title)}</span><span class="sig-love">😆×${s.love}</span><span class="sig-sub">🙂×${s.ok}</span><span class="sig-sub">😮‍💨×${s.meh}</span></div>`).join('')+`<div class="sig-note">😆が多いメニュー＝投資候補。😮‍💨が続くメニューは形を変えるか入れ替えを検討（3ヶ月ルール）</div>`;
+
+  // 日記
+  const dEnts=Object.entries(days).filter(([,v])=>v.diary||v.declaration).sort(([a],[b])=>a>b?-1:1).slice(0,7);
+  const dHtml=dEnts.length===0?`<div class="empty">にっきを かくと ここに たまっていくよ</div>`
+    :dEnts.map(([dd,v])=>`<div class="diary-row"><span class="diary-d">${fmtJp(dd)}</span>${v.declaration?`<div>📣 ${esc(v.declaration)}</div>`:''}${v.diary?`<div class="diary-t">📔 ${esc(v.diary)}</div>`:''}</div>`).join('');
+
+  const insHtml=ins.map(([type,ico,txt])=>{const cls=type==='good'?'ins-good':type==='warn'?'ins-warn':'ins-idea';return `<div class="ins-item"><span class="ins-ico">${ico}</span><span><span class="${cls}">●</span> ${esc(txt)}</span></div>`;}).join('');
+
+  return `
+    <div class="rep-head">
+      <div class="rt">📈 つみかさねレポート</div>
+      <div class="rs">${fmtJp(a.start)} 〜 ${fmtJp(a.end)}</div>
+      <div class="rep-period">${periodBtn(7,'1週間')}${periodBtn(30,'1ヶ月')}${periodBtn(90,'3ヶ月')}</div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kl">じっしした日</div><div class="kv">${a.activeDays}<span style="font-size:13px">/${a.nDays}日</span></div><div class="kt ${actPct>=70?'up':actPct>=40?'fl':'dn'}">継続率 ${actPct}%</div></div>
+      <div class="kpi"><div class="kl">へいきん達成率</div><div class="kv">${pct}<span style="font-size:13px">%</span></div><div class="kt ${trendTxt[0]}">${trendTxt[1]}</div></div>
+      <div class="kpi"><div class="kl">クリアした合計</div><div class="kv">${a.totalDone}<span style="font-size:13px">こ</span></div><div class="kt fl">毎日${a.all.length}こ中</div></div>
+      <div class="kpi"><div class="kl">最高記録</div><div class="kv">${a.recordProgress[0]&&a.recordProgress[0].best!=null?a.recordProgress[0].best:'—'}</div><div class="kt fl">${a.recordProgress[0]?esc(a.recordProgress[0].task.title):'記録メニューなし'}</div></div>
+    </div>
+    <div class="card"><div class="card-title">🗓 この2週間</div><div class="heat">${heat}</div></div>
+    <div class="card"><div class="card-title">📊 1しゅうかんの たっせい</div><div class="bars">${bars}</div></div>
+    ${recHtml}
+    <div class="insight"><div class="it">🔍 自動分析と気づき</div>${insHtml}</div>
+    <div class="card"><div class="card-title">🔥 ねっちゅうシグナル（おうちのひと向け）</div>${sigHtml}</div>
+    <div class="card"><div class="card-title">📔 さいきんの きろく</div>${dHtml}</div>
+    <div class="rep-btns">
+      <button class="rep-btn print" onclick="act.printReport()">🖨 レポートを印刷 / PDF保存</button>
+      <button class="rep-btn ai" onclick="act.aiReport()">🤖 AIに相談する文章をコピー</button>
+    </div>
+    <div class="rep-note">「AIに相談する文章をコピー」を押すと、この期間のデータと背景をまとめた文章がコピーされます。ChatGPTやClaude等に貼り付けると、メニューの進化やレベルアップの提案など、より詳しいアドバイスが受け取れます。</div>
   `;
 }
 
@@ -1370,7 +1653,7 @@ function renderOverlay(){
 }
 
 render();
-if(cloud.url){autoPull();fetchCheers();fetchPlans();}
+if(cloud.url){autoPull();fetchCheers();fetchPlans();fetchMemos();}
 </script>
 </body>
 </html>

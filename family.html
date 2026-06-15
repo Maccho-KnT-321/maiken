@@ -89,12 +89,21 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .fgh{position:sticky;top:0;z-index:3;background:#be185d;color:#fff;font-size:13px;font-weight:900;text-align:center;padding:8px 2px;border-left:1px solid rgba(255,255,255,.12)}
 .fgh.today{background:#ec4899}
 .fgh.fcorner{left:0;z-index:4;font-size:11px}
+".fgnotes{background:#fff7ed;border-bottom:1px solid #fed7aa;padding:3px;height:48px;overflow-y:auto;box-sizing:border-box}
+.fgnotes-spacer{height:48px;border-bottom:1px solid #fed7aa;box-sizing:border-box}
+.fgnote-block{font-size:10px;line-height:1.3;padding:4px 5px;margin-bottom:2px;background:#fff;color:#9a3412;font-weight:700;border-radius:5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid #fed7aa}
+.fmemo-card{background:#f0fdfa;border:2px solid #99f6e4;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer}
+.fmemo-title{font-weight:900;font-size:16px;color:#0f766e}
+.fmemo-time{font-size:12px;color:#9ca3af;font-weight:700;margin-top:2px}
+.fmemo-prev{font-size:14px;color:#475569;margin-top:6px;line-height:1.6}
 .fcol{position:relative;border-left:1px solid #fce7f3}
 .ftimecol{position:sticky;left:0;z-index:2;background:#fff}
-.fgtime{font-size:10px;color:#9ca3af;text-align:right;padding-right:4px;height:15px;line-height:15px;border-top:1px solid #fdf2f8}
-.fgtime.hour{color:#6b7280;font-weight:700;border-top:1px solid #fce7f3}
-.fgcell{height:15px;border-top:1px solid #fdf5f9}
-.fgcell.hour{border-top:1px solid #fce7f3}
+.fgtime{font-size:10px;color:#9ca3af;text-align:right;padding-right:4px;height:5px;line-height:5px;border-top:none}
+.fgtime.hour{color:#6b7280;font-weight:700;border-top:1px solid #f9a8d4;line-height:1px}
+.fgtime.half{border-top:1px solid #fdeaf2}
+.fgcell{height:5px;border-top:none}
+.fgcell.hour{border-top:1px solid #f9a8d4}
+.fgcell.half{border-top:1px solid #fdeaf2}
 .fev{position:absolute;left:2px;right:2px;border-radius:7px;padding:3px 6px;color:#fff;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.2);line-height:1.3}
 .fev .fet{font-weight:900;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fev .fep{font-size:10px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -118,6 +127,7 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 </div>
 <div class="tabbar"><div class="tabbar-in" id="tabbar"></div></div>
 <div id="toast-area"></div>
+<div id="overlay"></div>
 
 <script>
 /* ───────────────────────────────────────────
@@ -136,6 +146,12 @@ let tasksDef={morning:[],evening:[]};
 let cheers=[];
 let plans=[];
 let weekStart=1;
+let dayNotes={};
+let sharedMemos=[];
+let famNote=null;
+function mapLinkF(place){if(!place)return '';return /^https?:\/\//i.test(place)?place:('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place));}
+function linkify(text){const e=(text||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return e.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:#2563eb;word-break:break-all">$1</a>').replace(/\n/g,'<br>');}
+function normNotes(dn){const o={};Object.keys(dn||{}).forEach(d=>{const v=dn[d];if(typeof v==='string'){const t=v.trim();o[d]=t?[{id:'old'+d,title:t.split(/\n/)[0].slice(0,20)||'メモ',body:t}]:[];}else o[d]=v||[];});return o;}
 const PLAN_COLORS_NAME={'#3b82f6':'がっこう','#22a05a':'サッカー','#f07020':'バスケ','#8b5cf6':'からて','#ec4899':'しゅくだい','#eab308':'あそび','#64748b':'そのた'};
 let repDays=30;
 let lastFetch=0;
@@ -154,12 +170,14 @@ function post(obj){return fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'
 
 async function loadAll(silent){
   try{
-    const [pull,ch,pl]=await Promise.all([api('pull'),api('cheers'),api('plans')]);
+    const [pull,ch,pl,mm]=await Promise.all([api('pull'),api('cheers'),api('plans'),api('sharedMemos')]);
     if(pull&&pull.days)days=pull.days;
     if(pull&&pull.tasks)tasksDef=pull.tasks;
     if(ch&&ch.cheers)cheers=ch.cheers;
     if(pl&&pl.plans)plans=pl.plans;
     if(pl&&typeof pl.weekStart==='number')weekStart=pl.weekStart;
+    if(pl&&pl.dayNotes)dayNotes=normNotes(pl.dayNotes);
+    if(mm&&mm.memos)sharedMemos=mm.memos;
     lastFetch=Date.now();
     render();
   }catch(e){
@@ -323,11 +341,60 @@ function buildAiPrompt(a){
 
 /* ===== タブUI ===== */
 function renderTabs(){
-  const defs=[['home','🏠','ホーム'],['schedule','🗓','よてい'],['report','📋','レポート'],['cheer','💌','おうえん']];
+  const defs=[['home','🏠','ホーム'],['schedule','🗓','よてい'],['memo','📝','メモ'],['report','📋','レポート'],['cheer','💌','おうえん']];
   document.getElementById('tabbar').innerHTML=defs.map(([k,i,l])=>
     `<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')"><span class="ico">${i}</span>${l}</button>`).join('');
 }
 function setTab(t){tab=t;render()}
+
+function openFamPlan(id){
+  const p=(plans||[]).find(x=>x.id===id);if(!p)return;
+  const wn=['日','月','火','水','木','金','土'];
+  const ml=p.place?mapLinkF(p.place):'';
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="closeFamNote()"><div class="modal" onclick="event.stopPropagation()">
+    <div style="font-size:12px;color:#9ca3af;font-weight:700">${wn[p.day]}よう日</div>
+    <h3 style="margin-top:2px"><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:${p.color||'#64748b'};vertical-align:middle;margin-right:6px"></span>${escF(p.title)}</h3>
+    <div style="font-size:15px;color:#374151;margin:12px 0;line-height:1.9">
+      <div>🕐 ${escF(p.start)} 〜 ${escF(p.end)}</div>
+      ${p.place?`<div style="margin-top:6px">📍 ${escF(p.place)}</div><a href="${ml}" target="_blank" rel="noopener" style="display:inline-block;margin-top:4px;font-size:14px;font-weight:700;color:#2563eb">🗺 地図でひらく</a>`:''}
+      ${p.memo?`<div style="margin-top:10px;background:#fdf2f8;border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-word">${linkify(p.memo)}</div>`:''}
+    </div>
+    <div class="m-btns"><button class="send-btn" style="flex:1;padding:12px" onclick="closeFamNote()">とじる</button></div>
+  </div></div>`;
+}
+function openFamNote(d,id){
+  const list=dayNotes[d]||[];const n=list.find(x=>x.id===id);if(!n)return;
+  const wn=['日','月','火','水','木','金','土'];
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="closeFamNote()"><div class="modal" onclick="event.stopPropagation()">
+    <div style="font-size:12px;color:#9ca3af;font-weight:700">${wn[d]}よう日 の メモ</div>
+    <h3 style="margin-top:2px">📌 ${escF(n.title)}</h3>
+    <div style="font-size:15px;line-height:1.9;color:#374151;white-space:pre-wrap;word-break:break-word;background:#fdf2f8;border-radius:12px;padding:14px;margin:10px 0;max-height:340px;overflow:auto">${n.body?linkify(n.body):'<span style="color:#9ca3af">（本文なし）</span>'}</div>
+    <div class="m-btns" style="display:flex;gap:10px"><button class="send-btn" style="flex:1;padding:12px" onclick="closeFamNote()">とじる</button></div>
+  </div></div>`;
+}
+function closeFamNote(){const o=document.getElementById('overlay');if(o)o.innerHTML='';}
+function viewMemo(){
+  const items=sharedMemos.length?sharedMemos.map(m=>{
+    const prev=(m.body||'').replace(/\n/g,' ').slice(0,50);
+    return `<div class="fmemo-card" onclick="openFamMemo('${m.id}')">
+      <div class="fmemo-title">${escF(m.title)}</div>
+      <div class="fmemo-time">${escF(m.time||'')}</div>
+      ${prev?`<div class="fmemo-prev">${escF(prev)}${m.body&&m.body.length>50?'…':''}</div>`:''}
+    </div>`;
+  }).join(''):'<div class="empty">まだ 共有された メモは ありません</div>';
+  return `<div class="card"><div class="card-title">📝 たいちゃんからの メモ・日記</div>${items}</div>
+    <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>`;
+}
+function openFamMemo(id){
+  const m=sharedMemos.find(x=>x.id===id);if(!m)return;
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="closeFamNote()"><div class="modal" onclick="event.stopPropagation()">
+    <div style="font-size:12px;color:#9ca3af;font-weight:700">${escF(m.time||'')}</div>
+    <h3 style="margin-top:2px">${escF(m.title)}</h3>
+    <div style="font-size:15px;line-height:1.9;color:#374151;white-space:pre-wrap;word-break:break-word;background:#f0fdfa;border-radius:12px;padding:14px;margin:10px 0;max-height:360px;overflow:auto">${m.body?linkify(m.body):'<span style="color:#9ca3af">（本文なし）</span>'}</div>
+    <div class="m-btns"><button class="send-btn" style="flex:1;padding:12px" onclick="closeFamNote()">とじる</button></div>
+  </div></div>`;
+}
+function escF(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 function render(){
   document.getElementById('date').textContent=fmtJp(today)+' げんざい';
@@ -335,6 +402,7 @@ function render(){
   const v=document.getElementById('view');
   if(tab==='home')v.innerHTML=viewHome();
   else if(tab==='schedule')v.innerHTML=viewSchedule();
+  else if(tab==='memo')v.innerHTML=viewMemo();
   else if(tab==='report')v.innerHTML=viewReport();
   else v.innerHTML=viewCheer();
 }
@@ -343,18 +411,19 @@ function render(){
 function viewSchedule(){
   const wn=['日','月','火','水','木','金','土'];
   const todayDow=new Date().getDay();
-  const START=6, END=22, slotH=15;
-  const rows=(END-START)*4;
+  const START=6, END=22, STEP=5, slotH=5;
+  const rows=(END-START)*60/STEP;
 
-  if(!plans||!plans.length){
+  const hasNotes=Object.keys(dayNotes||{}).some(k=>(dayNotes[k]||[]).length);
+  if((!plans||!plans.length)&&!hasNotes){
     return `<div class="card"><div class="card-title">🗓 1しゅうかんの よてい</div><div class="empty">まだ よていは とうろくされていません</div></div>
       <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>`;
   }
 
   // 時間目盛り
-  let timeCol='<div class="fcol ftimecol"><div class="fgh fcorner">時</div>';
-  for(let r=0;r<rows;r++){const min=START*60+r*15;const isHour=min%60===0;
-    timeCol+=`<div class="fgtime ${isHour?'hour':''}">${isHour?String(min/60).padStart(2,'0')+':00':''}</div>`;}
+  let timeCol='<div class="fcol ftimecol"><div class="fgh fcorner">時</div><div class="fgnotes-spacer"></div>';
+  for(let r=0;r<rows;r++){const min=START*60+r*STEP;const isHour=min%60===0;const isHalf=min%30===0;
+    timeCol+=`<div class="fgtime ${isHour?'hour':isHalf?'half':''}">${isHour?String(min/60).padStart(2,'0')+':00':''}</div>`;}
   timeCol+='</div>';
 
   // 各曜日
@@ -362,21 +431,24 @@ function viewSchedule(){
   for(let idx=0;idx<7;idx++){
     const d=(weekStart+idx)%7;
     let cells='';
-    for(let r=0;r<rows;r++){const min=START*60+r*15;const isHour=min%60===0;
-      cells+=`<div class="fgcell ${isHour?'hour':''}"></div>`;}
+    for(let r=0;r<rows;r++){const min=START*60+r*STEP;const isHour=min%60===0;const isHalf=min%30===0;
+      cells+=`<div class="fgcell ${isHour?'hour':isHalf?'half':''}"></div>`;}
     let evs='';
     plans.filter(p=>p.day===d).forEach(p=>{
       const s=toMin(p.start),e=toMin(p.end);
-      const top=(s-START*60)/15*slotH;
-      const h=Math.max((e-s)/15*slotH-2,16);
+      const top=(s-START*60)/STEP*slotH;
+      const h=Math.max((e-s)/STEP*slotH-2,16);
       const col=p.color||'#64748b';
-      evs+=`<div class="fev" style="top:${top}px;height:${h}px;background:${col}">
+      evs+=`<div class="fev" style="top:${top}px;height:${h}px;background:${col}" onclick="openFamPlan('${p.id}')">
         <div class="fet">${esc(p.title)}</div>
         ${h>34&&p.place?`<div class="fep">📍${esc(p.place)}</div>`:''}
         ${h>50?`<div class="fep">${esc(p.start)}-${esc(p.end)}</div>`:''}
       </div>`;
     });
-    cols+=`<div class="fcol"><div class="fgh ${d===todayDow?'today':''}">${wn[d]}</div><div style="position:relative">${cells}${evs}</div></div>`;
+    const notes=dayNotes[d]||[];
+    // メモの有無に関わらず同じ高さの行を確保（グリッドのズレ防止）
+    let noteHtml='<div class="fgnotes">'+notes.map(n=>`<div class="fgnote-block" onclick="openFamNote(${d},'${n.id}')">📌 ${esc(n.title)}</div>`).join('')+'</div>';
+    cols+=`<div class="fcol"><div class="fgh ${d===todayDow?'today':''}">${wn[d]}</div>${noteHtml}<div style="position:relative">${cells}${evs}</div></div>`;
   }
   // 凡例
   const used={};plans.forEach(p=>{if(p.color)used[p.color]=true});
