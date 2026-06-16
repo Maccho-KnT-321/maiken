@@ -28,14 +28,26 @@ body{
 .h-eyebrow{font-size:10px;letter-spacing:3px;color:#fdba74;font-weight:700}
 .h-date{font-size:22px;font-weight:900}
 .h-streak{text-align:right}
-.wx-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(255,255,255,.12);border-radius:12px;padding:8px 12px;margin-top:10px;cursor:pointer;flex-wrap:wrap}
+.wx-box{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 6px 8px;margin-top:10px}
+.wx-top{display:flex;align-items:center;justify-content:space-between;padding:0 8px 8px;cursor:pointer}
 .wx-loc{font-size:12px;font-weight:700;color:#fff;opacity:.95}
-.wx-temp{font-size:12px;opacity:.85;margin-left:6px}
-.wx-segs{display:flex;gap:14px}
-.wx-seg{text-align:center;color:#fff}
-.wx-when{font-size:9px;opacity:.8;font-weight:700}
-.wx-ic{font-size:18px;line-height:1.2}
-.wx-pop{font-size:9px;opacity:.9}
+.wx-range{font-size:12px;font-weight:900}
+.wx-hi{color:#fca5a5;margin-right:8px}
+.wx-lo{color:#93c5fd}
+.wx-plantoggle{border:none;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-weight:700;font-size:10px;border-radius:99px;padding:4px 10px;margin-left:8px;cursor:pointer}
+.wx-scroll{overflow-x:auto;padding:0 6px 4px;scrollbar-width:thin}
+.wx-scroll::-webkit-scrollbar{height:4px}
+.wx-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.3);border-radius:2px}
+.wx-grid{display:grid;grid-template-columns:repeat(18,minmax(30px,1fr));gap:2px;min-width:560px}
+.wx-hour{text-align:center;color:#fff;background:rgba(255,255,255,.06);border-radius:10px;padding:6px 2px}
+.wx-h{font-size:10px;opacity:.8;font-weight:700}
+.wx-ic{font-size:20px;line-height:1.3}
+.wx-t{font-size:13px;font-weight:900}
+.wx-pop{font-size:9px;color:#bae6fd;font-weight:700}
+.wx-pop.dim{opacity:.4;color:#fff}
+.wx-planrow{display:grid;grid-template-columns:repeat(18,minmax(30px,1fr));gap:2px;min-width:560px;margin-top:4px}
+.wx-plan{border-radius:7px;color:#fff;font-size:10px;font-weight:900;padding:4px 6px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.wx-plan span{overflow:hidden;text-overflow:ellipsis}
 .h-streak .n{font-size:30px;font-weight:900;color:#fdba74;line-height:1}
 .h-streak .l{font-size:10px;color:#a5b4fc}
 .progress{margin-top:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);border-radius:99px;height:22px;overflow:hidden}
@@ -351,7 +363,8 @@ let memoView=null;
 let changelog=load('maiken_changelog_v1',[]); // メニュー変更履歴 [{t,type,name,detail}]
 let weatherLoc=load('maiken_weatherloc_v1',{name:'東京',lat:35.6895,lon:139.6917}); // 天気の地点
 function saveWeatherLoc(){try{localStorage.setItem('maiken_weatherloc_v1',JSON.stringify(weatherLoc))}catch(e){}}
-let weatherData=null; // {morning:{code,pop},noon:{...},night:{...},tmax,tmin}
+let weatherData=null; // {hours:[...],tmax,tmin}
+let showPlanBar=false; // 天気の下の予定バーを出すか
 // 天気コード → 絵文字＋説明
 function wxIcon(code){
   if(code===0)return['☀️','はれ'];
@@ -367,14 +380,18 @@ function wxIcon(code){
 async function fetchWeather(){
   if(!weatherLoc||weatherLoc.lat==null)return;
   try{
-    const u=`https://api.open-meteo.com/v1/forecast?latitude=${weatherLoc.lat}&longitude=${weatherLoc.lon}&hourly=weathercode,precipitation_probability&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=1`;
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${weatherLoc.lat}&longitude=${weatherLoc.lon}&hourly=weathercode,precipitation_probability,temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=1`;
     const r=await fetch(u);const j=await r.json();
     if(!j||!j.hourly)return;
     const H=j.hourly;
-    const at=h=>{const idx=H.time.findIndex(t=>t.endsWith(String(h).padStart(2,'0')+':00'));return idx>=0?idx:0;};
-    const slot=h=>{const i=at(h);return{code:H.weathercode[i],pop:H.precipitation_probability?H.precipitation_probability[i]:null};};
+    // 6時〜22時を2時間おきに（スペースに合わせた粒度）
+    const hours=[];
+    for(let h=6;h<=22;h+=2){
+      const idx=H.time.findIndex(t=>t.endsWith(String(h).padStart(2,'0')+':00'));
+      if(idx>=0)hours.push({h,code:H.weathercode[idx],pop:H.precipitation_probability?H.precipitation_probability[idx]:null,temp:H.temperature_2m?Math.round(H.temperature_2m[idx]):null});
+    }
     weatherData={
-      morning:slot(7), noon:slot(13), night:slot(19),
+      hours,
       tmax:j.daily&&j.daily.temperature_2m_max?Math.round(j.daily.temperature_2m_max[0]):null,
       tmin:j.daily&&j.daily.temperature_2m_min?Math.round(j.daily.temperature_2m_min[0]):null
     };
@@ -555,6 +572,7 @@ function streak(){
 /* ── actions (global for onclick) ── */
 window.act={
   setTab(t){tab=t;render()},
+  togglePlanBar(){showPlanBar=!showPlanBar;renderHeader();},
   async setWeatherLoc(){
     const v=(document.getElementById('wx-input').value||'').trim();
     if(!v){alert('ちいき名を いれてね');return}
@@ -999,12 +1017,46 @@ function render(){renderHeader();renderTabs();
 }
 
 function weatherStripHtml(){
-  if(!weatherData)return '';
-  const seg=(label,s)=>{const[ic,]=wxIcon(s.code);return `<div class="wx-seg"><div class="wx-when">${label}</div><div class="wx-ic">${ic}</div>${s.pop!=null?`<div class="wx-pop">☔${s.pop}%</div>`:''}</div>`;};
-  const temp=(weatherData.tmax!=null)?`<span class="wx-temp">${weatherData.tmin}°/${weatherData.tmax}°</span>`:'';
-  return `<div class="wx-strip" onclick="act.setTab('settings')" title="地点はせっていで変更">
-    <div class="wx-loc">📍${esc(weatherLoc.name)} ${temp}</div>
-    <div class="wx-segs">${seg('あさ',weatherData.morning)}${seg('ひる',weatherData.noon)}${seg('よる',weatherData.night)}</div>
+  if(!weatherData||!weatherData.hours||!weatherData.hours.length)return '';
+  const WX_START=6, WX_END=22, SPAN=WX_END-WX_START; // 16時間
+  // 天気コマ（2時間おき）：時間軸グリッド上に配置
+  const cells=weatherData.hours.map(s=>{
+    const[ic,]=wxIcon(s.code);
+    const col=(s.h-WX_START)+1; // grid列（1始まり）
+    const rain=(s.pop!=null&&s.pop>=20)?`<div class="wx-pop">☔${s.pop}%</div>`:`<div class="wx-pop dim">${s.pop!=null?s.pop+'%':''}</div>`;
+    return `<div class="wx-hour" style="grid-column:${col} / span 2"><div class="wx-h">${s.h}時</div><div class="wx-ic">${ic}</div>${s.temp!=null?`<div class="wx-t">${s.temp}°</div>`:''}${rain}</div>`;
+  }).join('');
+  const tmax=(weatherData.tmax!=null)?`<span class="wx-hi">最高 ${weatherData.tmax}°</span>`:'';
+  const tmin=(weatherData.tmin!=null)?`<span class="wx-lo">最低 ${weatherData.tmin}°</span>`:'';
+
+  // 今日の予定を同じ時間軸でバー表示
+  const todayDow=new Date().getDay();
+  const todays=(plans||[]).filter(p=>p.day===todayDow).sort((a,b)=>toMin(a.start)-toMin(b.start));
+  let planRow='';
+  if(todays.length){
+    const bars=todays.map(p=>{
+      const sH=toMin(p.start)/60, eH=toMin(p.end)/60;
+      let cs=Math.max(sH,WX_START), ce=Math.min(eH,WX_END);
+      if(ce<=cs)return ''; // 表示範囲外
+      // グリッド列は整数（時間）に丸める：開始は切り捨て、終了は切り上げ
+      const csI=Math.floor(cs), ceI=Math.ceil(ce);
+      const col=(csI-WX_START)+1; const span=Math.max(ceI-csI,1);
+      const col0=p.color||'#64748b';
+      return `<div class="wx-plan" style="grid-column:${col} / span ${span};background:${col0}" title="${esc(p.title)} ${esc(p.start)}-${esc(p.end)}"><span>${esc(p.title)}</span></div>`;
+    }).join('');
+    planRow=`<div class="wx-planrow">${bars}</div>`;
+  }
+
+  const planToggle=todays.length?`<button class="wx-plantoggle" onclick="event.stopPropagation();act.togglePlanBar()">${showPlanBar?'よていを かくす ▲':'きょうの よてい ▼'}</button>`:'';
+  return `<div class="wx-box">
+    <div class="wx-top">
+      <span class="wx-loc" onclick="act.setTab('settings')" title="地点はせっていで変更">📍${esc(weatherLoc.name)}</span>
+      <span class="wx-range">${tmax} ${tmin} ${planToggle}</span>
+    </div>
+    <div class="wx-scroll">
+      <div class="wx-grid">${cells}</div>
+      ${showPlanBar?planRow:''}
+    </div>
   </div>`;
 }
 
