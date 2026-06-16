@@ -28,6 +28,14 @@ body{
 .h-eyebrow{font-size:10px;letter-spacing:3px;color:#fdba74;font-weight:700}
 .h-date{font-size:22px;font-weight:900}
 .h-streak{text-align:right}
+.wx-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(255,255,255,.12);border-radius:12px;padding:8px 12px;margin-top:10px;cursor:pointer;flex-wrap:wrap}
+.wx-loc{font-size:12px;font-weight:700;color:#fff;opacity:.95}
+.wx-temp{font-size:12px;opacity:.85;margin-left:6px}
+.wx-segs{display:flex;gap:14px}
+.wx-seg{text-align:center;color:#fff}
+.wx-when{font-size:9px;opacity:.8;font-weight:700}
+.wx-ic{font-size:18px;line-height:1.2}
+.wx-pop{font-size:9px;opacity:.9}
 .h-streak .n{font-size:30px;font-weight:900;color:#fdba74;line-height:1}
 .h-streak .l{font-size:10px;color:#a5b4fc}
 .progress{margin-top:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);border-radius:99px;height:22px;overflow:hidden}
@@ -341,6 +349,45 @@ let plans=load('maiken_plans_v1',[]);     // 週間スケジュール
 let memos=load('maiken_memos_v1',[]);     // 日記・メモ [{id,time,title,body,shared}]
 let memoView=null;
 let changelog=load('maiken_changelog_v1',[]); // メニュー変更履歴 [{t,type,name,detail}]
+let weatherLoc=load('maiken_weatherloc_v1',{name:'東京',lat:35.6895,lon:139.6917}); // 天気の地点
+function saveWeatherLoc(){try{localStorage.setItem('maiken_weatherloc_v1',JSON.stringify(weatherLoc))}catch(e){}}
+let weatherData=null; // {morning:{code,pop},noon:{...},night:{...},tmax,tmin}
+// 天気コード → 絵文字＋説明
+function wxIcon(code){
+  if(code===0)return['☀️','はれ'];
+  if([1,2].includes(code))return['🌤','はれ ときどき くもり'];
+  if(code===3)return['☁️','くもり'];
+  if([45,48].includes(code))return['🌫','きり'];
+  if([51,53,55,56,57].includes(code))return['🌦','こさめ'];
+  if([61,63,65,66,67,80,81,82].includes(code))return['🌧','あめ'];
+  if([71,73,75,77,85,86].includes(code))return['❄️','ゆき'];
+  if([95,96,99].includes(code))return['⛈','かみなり'];
+  return['🌡',''];
+}
+async function fetchWeather(){
+  if(!weatherLoc||weatherLoc.lat==null)return;
+  try{
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${weatherLoc.lat}&longitude=${weatherLoc.lon}&hourly=weathercode,precipitation_probability&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=1`;
+    const r=await fetch(u);const j=await r.json();
+    if(!j||!j.hourly)return;
+    const H=j.hourly;
+    const at=h=>{const idx=H.time.findIndex(t=>t.endsWith(String(h).padStart(2,'0')+':00'));return idx>=0?idx:0;};
+    const slot=h=>{const i=at(h);return{code:H.weathercode[i],pop:H.precipitation_probability?H.precipitation_probability[i]:null};};
+    weatherData={
+      morning:slot(7), noon:slot(13), night:slot(19),
+      tmax:j.daily&&j.daily.temperature_2m_max?Math.round(j.daily.temperature_2m_max[0]):null,
+      tmin:j.daily&&j.daily.temperature_2m_min?Math.round(j.daily.temperature_2m_min[0]):null
+    };
+    if(tab==='today')renderHeader();
+  }catch(e){}
+}
+// 地名→緯度経度（ジオコーディング）
+async function geocodeLoc(name){
+  const u=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=ja&format=json`;
+  const r=await fetch(u);const j=await r.json();
+  if(j&&j.results&&j.results.length){const g=j.results[0];return{name:g.name+(g.admin1?'（'+g.admin1+'）':''),lat:g.latitude,lon:g.longitude};}
+  return null;
+}
 function saveChangelog(){try{localStorage.setItem('maiken_changelog_v1',JSON.stringify(changelog))}catch(e){}queueLogSync()}
 let logSyncTimer=null;
 function queueLogSync(){if(!cloud.url)return;clearTimeout(logSyncTimer);logSyncTimer=setTimeout(pushLog,1500);}
@@ -508,6 +555,15 @@ function streak(){
 /* ── actions (global for onclick) ── */
 window.act={
   setTab(t){tab=t;render()},
+  async setWeatherLoc(){
+    const v=(document.getElementById('wx-input').value||'').trim();
+    if(!v){alert('ちいき名を いれてね');return}
+    const g=await geocodeLoc(v);
+    if(!g){alert('その ちいきが みつかりませんでした。べつの 名前で ためしてね');return}
+    weatherLoc=g;saveWeatherLoc();weatherData=null;
+    fetchWeather();render();
+    alert('「'+g.name+'」に せっていしました！');
+  },
   toggle(id){
     const d=getDay(today);const checks={...d.checks};const feels={...d.feels};
     if(checks[id]){delete checks[id];delete feels[id];patchToday({checks,feels});render()}
@@ -942,6 +998,16 @@ function render(){renderHeader();renderTabs();
   updateChip();
 }
 
+function weatherStripHtml(){
+  if(!weatherData)return '';
+  const seg=(label,s)=>{const[ic,]=wxIcon(s.code);return `<div class="wx-seg"><div class="wx-when">${label}</div><div class="wx-ic">${ic}</div>${s.pop!=null?`<div class="wx-pop">☔${s.pop}%</div>`:''}</div>`;};
+  const temp=(weatherData.tmax!=null)?`<span class="wx-temp">${weatherData.tmin}°/${weatherData.tmax}°</span>`:'';
+  return `<div class="wx-strip" onclick="act.setTab('settings')" title="地点はせっていで変更">
+    <div class="wx-loc">📍${esc(weatherLoc.name)} ${temp}</div>
+    <div class="wx-segs">${seg('あさ',weatherData.morning)}${seg('ひる',weatherData.noon)}${seg('よる',weatherData.night)}</div>
+  </div>`;
+}
+
 function renderHeader(){
   const d=getDay(today);const total=allTasks().length;
   const done=Object.keys(d.checks).length;
@@ -951,6 +1017,7 @@ function renderHeader(){
       <div><div class="h-eyebrow">DAILY ROUTINE</div><div class="h-date">${fmtJp(today)}</div></div>
       <div class="h-streak"><div class="l">れんぞく</div><div class="n">${streak()}<span style="font-size:13px"> 日</span></div></div>
     </div>
+    ${weatherStripHtml()}
     <div class="progress"><div class="progress-fill" style="width:${Math.max(pct,8)}%"><span>${pct}%</span></div></div>
     <div class="h-sub">きょうは ${done} / ${total} クリア！<span class="cloud-chip" id="cloud-chip"></span></div>`;
 }
@@ -1694,6 +1761,14 @@ function viewSettings(){
     return`<div class="card"><div class="card-title">${label}</div>${rows}${add}</div>`;
   };
   return secEd('morning','🌅 朝の部のメニュー','o')+secEd('evening','🌙 夜の部のメニュー','p')+`
+    <div class="card"><div class="card-title">🌤 天気の ちいき</div>
+      <div class="sig-note" style="margin-bottom:8px">いまの ちいき：<b>${esc(weatherLoc.name)}</b></div>
+      <div style="display:flex;gap:8px">
+        <input id="wx-input" placeholder="例: 横浜 / 渋谷区 / 札幌" style="flex:1;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-family:inherit">
+        <button class="cbtn t" onclick="act.setWeatherLoc()">せってい</button>
+      </div>
+      <div class="sig-note" style="margin-top:8px;color:#94a3b8">市区町村や地名を入れて「せってい」を押すと、その地点の天気が「きょう」画面に出ます。</div>
+    </div>
     <div class="card"><div class="card-title">☁️ クラウド同期（じどう）</div>
       <div class="sig-note" style="margin-bottom:10px;color:#059669;font-weight:700">✅ このアプリは同期せってい済みです。どの端末でも、開くだけで記録が同期されます（URL設定は不要）。</div>
       <div class="cloud-btns">
@@ -1754,6 +1829,7 @@ function renderOverlay(){
 
 render();
 if(cloud.url){autoPull();fetchCheers();fetchPlans();fetchMemos();fetchLog();}
+fetchWeather();
 </script>
 </body>
 </html>
