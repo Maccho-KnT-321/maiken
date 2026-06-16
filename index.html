@@ -29,12 +29,14 @@ body{
 .h-date{font-size:22px;font-weight:900}
 .h-streak{text-align:right}
 .wx-box{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 6px 8px;margin-top:10px}
-.wx-top{display:flex;align-items:center;justify-content:space-between;padding:0 8px 8px;cursor:pointer}
-.wx-loc{font-size:12px;font-weight:700;color:#fff;opacity:.95}
-.wx-range{font-size:12px;font-weight:900}
+.wx-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 8px}
+.wx-info{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;flex:1;min-width:0;cursor:pointer}
+.wx-loc{font-size:12px;font-weight:700;color:#fff;opacity:.95;white-space:nowrap}
+.wx-range{font-size:12px;font-weight:900;white-space:nowrap}
 .wx-hi{color:#fca5a5;margin-right:8px}
 .wx-lo{color:#93c5fd}
-.wx-plantoggle{border:none;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-weight:700;font-size:10px;border-radius:99px;padding:4px 10px;margin-left:8px;cursor:pointer}
+.wx-plantoggle{flex:0 0 auto;border:none;background:rgba(255,255,255,.25);color:#fff;font-family:inherit;font-weight:900;font-size:11px;border-radius:99px;padding:7px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;white-space:nowrap}
+.wx-plantoggle:active{background:rgba(255,255,255,.4)}
 .wx-scroll{overflow-x:auto;padding:0 6px 4px;scrollbar-width:thin}
 .wx-scroll::-webkit-scrollbar{height:4px}
 .wx-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.3);border-radius:2px}
@@ -576,7 +578,7 @@ function streak(){
 /* ── actions (global for onclick) ── */
 window.act={
   setTab(t){tab=t;render()},
-  togglePlanBar(){showPlanBar=!showPlanBar;renderHeader();},
+  togglePlanBar(){showPlanBar=!showPlanBar;render();},
   async setWeatherLoc(){
     const v=(document.getElementById('wx-input').value||'').trim();
     if(!v){alert('ちいき名を いれてね');return}
@@ -1053,11 +1055,14 @@ function weatherStripHtml(){
     planRow=`<div class="wx-planrow">${bars}</div>`;
   }
 
-  const planToggle=todays.length?`<button class="wx-plantoggle" onclick="event.stopPropagation();act.togglePlanBar()">${showPlanBar?'よていを かくす ▲':'きょうの よてい ▼'}</button>`:'';
+  const planToggle=todays.length?`<button class="wx-plantoggle" onclick="act.togglePlanBar()">${showPlanBar?'よてい ▲':'よてい ▼'}</button>`:'';
   return `<div class="wx-box">
     <div class="wx-top">
-      <span class="wx-loc" onclick="act.setTab('settings')" title="地点はせっていで変更">📍${esc(weatherLoc.name)}</span>
-      <span class="wx-range">${tmax} ${tmin} ${planToggle}</span>
+      <div class="wx-info" onclick="act.setTab('settings')" title="地点はせっていで変更">
+        <span class="wx-loc">📍${esc(weatherLoc.name)}</span>
+        <span class="wx-range">${tmax} ${tmin}</span>
+      </div>
+      ${planToggle}
     </div>
     <div class="wx-scroll">
       <div class="wx-grid">${cells}</div>
