@@ -39,7 +39,9 @@ body{
 .wx-scroll::-webkit-scrollbar{height:4px}
 .wx-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.3);border-radius:2px}
 .wx-grid{display:grid;grid-template-columns:repeat(18,minmax(30px,1fr));gap:2px;min-width:560px}
-.wx-hour{text-align:center;color:#fff;background:rgba(255,255,255,.06);border-radius:10px;padding:6px 2px}
+.wx-hour{position:relative;text-align:center;color:#fff;background:rgba(255,255,255,.06);border-radius:10px;padding:6px 2px}
+.wx-hour.now{background:linear-gradient(160deg,rgba(251,146,60,.55),rgba(244,63,94,.45));box-shadow:0 0 0 2px #fbbf24 inset;color:#fff}
+.wx-nowtag{position:absolute;top:-7px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#fff;font-size:8px;font-weight:900;border-radius:99px;padding:1px 7px;white-space:nowrap}
 .wx-h{font-size:10px;opacity:.8;font-weight:700}
 .wx-ic{font-size:20px;line-height:1.3}
 .wx-t{font-size:13px;font-weight:900}
@@ -54,6 +56,7 @@ body{
 .progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#fb923c,#fcd34d,#a3e635);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;transition:width .4s;min-width:34px}
 .progress-fill span{font-size:10px;font-weight:900;color:#1e1b4b}
 .h-sub{text-align:center;font-size:11px;color:#c7d2fe;margin-top:5px}
+.prog-block{margin:14px 0 4px}
 
 /* sections */
 .sec-head{border-radius:16px 16px 0 0;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-weight:900;margin-top:18px}
@@ -362,7 +365,7 @@ let memos=load('maiken_memos_v1',[]);     // 日記・メモ [{id,time,title,bod
 let memoView=null;
 let changelog=load('maiken_changelog_v1',[]); // メニュー変更履歴 [{t,type,name,detail}]
 let weatherLoc=load('maiken_weatherloc_v1',{name:'東京',lat:35.6895,lon:139.6917}); // 天気の地点
-function saveWeatherLoc(){try{localStorage.setItem('maiken_weatherloc_v1',JSON.stringify(weatherLoc))}catch(e){}}
+function saveWeatherLoc(){try{localStorage.setItem('maiken_weatherloc_v1',JSON.stringify(weatherLoc))}catch(e){}queuePlanSync();}
 let weatherData=null; // {hours:[...],tmax,tmin}
 let showPlanBar=false; // 天気の下の予定バーを出すか
 // 天気コード → 絵文字＋説明
@@ -455,7 +458,7 @@ function queuePlanSync(){
 }
 async function pushPlans(){
   if(!cloud.url)return;
-  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans,weekStart,dayNotes})})}catch(e){}
+  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans,weekStart,dayNotes,weatherLoc})})}catch(e){}
 }
 async function fetchPlans(){
   if(!cloud.url)return;
@@ -466,6 +469,7 @@ async function fetchPlans(){
     if(j&&j.plans){plans=j.plans;try{localStorage.setItem('maiken_plans_v1',JSON.stringify(plans))}catch(e){}}
     if(j&&typeof j.weekStart==='number'){weekStart=j.weekStart;try{localStorage.setItem('maiken_weekstart_v1',JSON.stringify(weekStart))}catch(e){}}
     if(j&&j.dayNotes){dayNotes=j.dayNotes;try{localStorage.setItem('maiken_daynotes_v1',JSON.stringify(dayNotes))}catch(e){}}
+    if(j&&j.weatherLoc&&j.weatherLoc.lat!=null){const changed=!weatherLoc||weatherLoc.lat!==j.weatherLoc.lat||weatherLoc.lon!==j.weatherLoc.lon;weatherLoc=j.weatherLoc;try{localStorage.setItem('maiken_weatherloc_v1',JSON.stringify(weatherLoc))}catch(e){}if(changed){weatherData=null;fetchWeather();}}
     if(j&&(j.plans||typeof j.weekStart==='number'||j.dayNotes)&&tab==='schedule')render();
   }catch(e){}
 }
@@ -1020,11 +1024,13 @@ function weatherStripHtml(){
   if(!weatherData||!weatherData.hours||!weatherData.hours.length)return '';
   const WX_START=6, WX_END=22, SPAN=WX_END-WX_START; // 16時間
   // 天気コマ（2時間おき）：時間軸グリッド上に配置
+  const nowH=new Date().getHours();
   const cells=weatherData.hours.map(s=>{
     const[ic,]=wxIcon(s.code);
     const col=(s.h-WX_START)+1; // grid列（1始まり）
+    const isNow=(nowH>=s.h&&nowH<s.h+2); // この2時間枠に現在時刻が入る
     const rain=(s.pop!=null&&s.pop>=20)?`<div class="wx-pop">☔${s.pop}%</div>`:`<div class="wx-pop dim">${s.pop!=null?s.pop+'%':''}</div>`;
-    return `<div class="wx-hour" style="grid-column:${col} / span 2"><div class="wx-h">${s.h}時</div><div class="wx-ic">${ic}</div>${s.temp!=null?`<div class="wx-t">${s.temp}°</div>`:''}${rain}</div>`;
+    return `<div class="wx-hour ${isNow?'now':''}" style="grid-column:${col} / span 2"><div class="wx-h">${s.h}時</div><div class="wx-ic">${ic}</div>${s.temp!=null?`<div class="wx-t">${s.temp}°</div>`:''}${rain}</div>`;
   }).join('');
   const tmax=(weatherData.tmax!=null)?`<span class="wx-hi">最高 ${weatherData.tmax}°</span>`:'';
   const tmin=(weatherData.tmin!=null)?`<span class="wx-lo">最低 ${weatherData.tmin}°</span>`:'';
@@ -1069,9 +1075,7 @@ function renderHeader(){
       <div><div class="h-eyebrow">DAILY ROUTINE</div><div class="h-date">${fmtJp(today)}</div></div>
       <div class="h-streak"><div class="l">れんぞく</div><div class="n">${streak()}<span style="font-size:13px"> 日</span></div></div>
     </div>
-    ${weatherStripHtml()}
-    <div class="progress"><div class="progress-fill" style="width:${Math.max(pct,8)}%"><span>${pct}%</span></div></div>
-    <div class="h-sub">きょうは ${done} / ${total} クリア！<span class="cloud-chip" id="cloud-chip"></span></div>`;
+`;
 }
 
 function renderTabs(){
@@ -1123,7 +1127,13 @@ function viewToday(){
     return`<div class="sec-head ${cls}"><span>${label}</span><span>${done}/${list.length}</span></div>
       <div class="sec-body">${list.map(taskHtml).join('')}</div>`;
   };
-  return cheerBanner+sec('morning','morning','🌅 あさの ぶ')+
+  const doneNow=Object.keys(d.checks).length, totalNow=allTasks().length;
+  const pctNow=totalNow?Math.round(doneNow/totalNow*100):0;
+  const progressBlock=`<div class="prog-block">
+    <div class="progress"><div class="progress-fill" style="width:${Math.max(pctNow,8)}%"><span>${pctNow}%</span></div></div>
+    <div class="h-sub" style="margin-top:6px">きょうは ${doneNow} / ${totalNow} クリア！<span class="cloud-chip" id="cloud-chip"></span></div>
+  </div>`;
+  return cheerBanner+weatherStripHtml()+progressBlock+sec('morning','morning','🌅 あさの ぶ')+
     `<div class="input-card"><div class="lbl o">📣 きょうの もくひょう</div>
       <input value="${esc(d.declaration)}" placeholder="きょうは ○○ を がんばる！" onchange="act.text('declaration',this.value)"></div>`+
     sec('evening','evening','🌙 よるの ぶ')+
