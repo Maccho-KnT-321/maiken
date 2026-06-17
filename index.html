@@ -192,6 +192,32 @@ svg.line-chart{width:100%;height:160px}
 .memo-share-badge{font-size:10px;font-weight:700;color:#0d9488;background:#ccfbf1;border-radius:99px;padding:3px 9px;flex-shrink:0}
 .memo-card-time{font-size:11px;color:#94a3b8;font-weight:700;margin-top:2px}
 .memo-card-prev{font-size:13px;color:#64748b;margin-top:6px;line-height:1.5}
+.memo-add{padding:9px 14px;font-size:12px}
+.memo-add.diary{background:linear-gradient(90deg,#f59e0b,#ec4899)}
+.memo-card.diary{border-left:4px solid #f59e0b}
+.dtag-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.dtag{font-size:10px;font-weight:700;background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 9px}
+.mf-bar{display:flex;gap:6px;margin-top:12px;background:rgba(255,255,255,.1);padding:4px;border-radius:12px}
+.mf-pill{flex:1;border:none;font-family:inherit;font-weight:900;font-size:13px;border-radius:9px;padding:9px;cursor:pointer;background:transparent;color:rgba(255,255,255,.6)}
+.mf-pill.on{background:#fff;color:#4338ca}
+.mf-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.mf-tag{border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-family:inherit;font-weight:700;font-size:11px;border-radius:99px;padding:5px 12px;cursor:pointer}
+.mf-tag.on{background:#fbbf24;border-color:#fbbf24;color:#7c2d12}
+.dv-row{margin:8px 0}
+.dv-label{font-size:11px;color:#94a3b8;font-weight:700}
+.dv-val{font-size:14px;color:#334155;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.dv-next{margin-top:10px;background:#fef3c7;border-radius:10px;padding:10px 12px;font-weight:700;color:#b45309;font-size:13px}
+.dtag-picks,.dtag-pick{display:inline-block}
+.dtag-picks{display:flex;flex-wrap:wrap;gap:6px}
+.dtag-pick{border:2px solid #e2e8f0;background:#fff;font-family:inherit;font-weight:700;font-size:12px;border-radius:99px;padding:6px 12px;cursor:pointer;color:#64748b}
+.dtag-pick.on{background:#fef3c7;border-color:#f59e0b;color:#b45309}
+.tagmng{display:flex;flex-wrap:wrap;gap:6px}
+.tagmng-item{display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#b45309;font-weight:700;font-size:12px;border-radius:99px;padding:4px 6px 4px 12px}
+.tagmng-item button{border:none;background:#f59e0b;color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;font-weight:900;line-height:1}
+.dplan-card{background:linear-gradient(120deg,#fef3c7,#fed7aa);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.dplan-head{font-weight:900;color:#b45309;font-size:13px;margin-bottom:6px}
+.dplan-item{font-size:14px;color:#7c2d12;font-weight:700;margin:3px 0}
+.dplan-from{font-size:11px;color:#a8743c;font-weight:400;margin-left:4px}
 .memo-share-row{display:flex;align-items:center;gap:10px;background:#f0fdfa;border:2px solid #99f6e4;border-radius:12px;padding:12px;margin:6px 0 4px;cursor:pointer;font-weight:700;color:#0f766e;font-size:14px}
 .memo-switch{width:46px;height:26px;border-radius:99px;background:#cbd5e1;position:relative;flex-shrink:0;transition:background .2s}
 .memo-switch.on{background:#14b8a6}
@@ -363,8 +389,18 @@ let repDays=30;          // レポート対象期間
 let logSub='report';     // きろくタブ内の表示 'report'|'log'
 let cheers=load('maiken_cheers_v1',[]);   // 受信した応援
 let plans=load('maiken_plans_v1',[]);     // 週間スケジュール
-let memos=load('maiken_memos_v1',[]);     // 日記・メモ [{id,time,title,body,shared}]
+let memos=load('maiken_memos_v1',[]);     // メモ・日記
+// 既存メモの後方互換：kindが無いものはメモ扱い（タイトルは本文先頭へ統合）
+memos=memos.map(function(m){
+  if(m.kind)return m;
+  const t=(m.title&&m.title!=='(タイトルなし)')?m.title:'';
+  return {id:m.id,time:m.time,kind:'memo',body:(t?(t+(m.body?'\n'+m.body:'')):(m.body||'')),shared:!!m.shared};
+});
 let memoView=null;
+let diaryTags=load('maiken_diarytags_v1',['空手','バスケ','サッカー','がっこう','その他']); // 日記タグ定義
+function saveDiaryTags(){try{localStorage.setItem('maiken_diarytags_v1',JSON.stringify(diaryTags))}catch(e){}queuePlanSync();}
+let memoFilter=load('maiken_memofilter_v1',{kind:'all',tags:[]}); // 一覧フィルター
+function saveMemoFilter(){try{localStorage.setItem('maiken_memofilter_v1',JSON.stringify(memoFilter))}catch(e){}}
 let changelog=load('maiken_changelog_v1',[]); // メニュー変更履歴 [{t,type,name,detail}]
 let weatherLoc=load('maiken_weatherloc_v1',{name:'東京',lat:35.6895,lon:139.6917}); // 天気の地点
 function saveWeatherLoc(){try{localStorage.setItem('maiken_weatherloc_v1',JSON.stringify(weatherLoc))}catch(e){}queuePlanSync();}
@@ -460,7 +496,7 @@ function queuePlanSync(){
 }
 async function pushPlans(){
   if(!cloud.url)return;
-  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans,weekStart,dayNotes,weatherLoc})})}catch(e){}
+  try{await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'savePlans',secret:SYNC_SECRET,plans,weekStart,dayNotes,weatherLoc,diaryTags})})}catch(e){}
 }
 async function fetchPlans(){
   if(!cloud.url)return;
@@ -472,6 +508,7 @@ async function fetchPlans(){
     if(j&&typeof j.weekStart==='number'){weekStart=j.weekStart;try{localStorage.setItem('maiken_weekstart_v1',JSON.stringify(weekStart))}catch(e){}}
     if(j&&j.dayNotes){dayNotes=j.dayNotes;try{localStorage.setItem('maiken_daynotes_v1',JSON.stringify(dayNotes))}catch(e){}}
     if(j&&j.weatherLoc&&j.weatherLoc.lat!=null){const changed=!weatherLoc||weatherLoc.lat!==j.weatherLoc.lat||weatherLoc.lon!==j.weatherLoc.lon;weatherLoc=j.weatherLoc;try{localStorage.setItem('maiken_weatherloc_v1',JSON.stringify(weatherLoc))}catch(e){}if(changed){weatherData=null;fetchWeather();}}
+    if(j&&Array.isArray(j.diaryTags)&&j.diaryTags.length){diaryTags=j.diaryTags;try{localStorage.setItem('maiken_diarytags_v1',JSON.stringify(diaryTags))}catch(e){}}
     if(j&&(j.plans||typeof j.weekStart==='number'||j.dayNotes)&&tab==='schedule')render();
   }catch(e){}
 }
@@ -660,34 +697,65 @@ window.act={
   },
   closeModal(){editing=null;renderOverlay()},
   newMemo(){
-    const now=new Date();
-    const ts=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    memoView={id:'memo'+Date.now(),time:ts,title:'',body:'',shared:false,_isNew:true};
+    memoView={id:'memo'+Date.now(),time:nowTs(),kind:'memo',body:'',shared:false,_isNew:true};
     renderMemoModal();
   },
-  openMemo(id){const m=memos.find(x=>x.id===id);if(!m)return;memoView=Object.assign({},m);renderMemoView();},
-  editMemoFromView(){if(!memoView)return;memoView._isNew=false;renderMemoModal();},
-  toggleMemoShare(){if(memoView)memoView.shared=!memoView.shared;renderMemoModal();},
+  newDiary(){
+    const d=new Date();const dt=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    memoView={id:'diary'+Date.now(),time:nowTs(),kind:'diary',title:'',date:dt,place:'',did:'',felt:'',nextDate:'',nextText:'',tags:[],shared:false,_isNew:true};
+    renderDiaryModal();
+  },
+  openMemo(id){const m=memos.find(x=>x.id===id);if(!m)return;memoView=Object.assign({},m);if(!memoView.tags)memoView.tags=[];memoView.kind==='diary'?renderDiaryView():renderMemoView();},
+  editMemoFromView(){if(!memoView)return;memoView._isNew=false;memoView.kind==='diary'?renderDiaryModal():renderMemoModal();},
+  toggleMemoShare(){if(memoView)memoView.shared=!memoView.shared;memoView.kind==='diary'?renderDiaryModal():renderMemoModal();},
+  toggleDiaryTag(t){if(!memoView)return;memoView.tags=memoView.tags||[];const i=memoView.tags.indexOf(t);if(i>=0)memoView.tags.splice(i,1);else memoView.tags.push(t);renderDiaryModal();},
   saveMemo(){
-    const g=id=>document.getElementById(id);
-    const title=g('memo-title').value.trim();
-    const body=g('memo-body').value;
-    if(!title&&!body.trim()){alert('タイトルか本文を いれてね');return}
-    memoView.title=title||'(タイトルなし)';
+    const body=document.getElementById('memo-body').value;
+    if(!body.trim()){alert('本文を いれてね');return}
     memoView.body=body;
+    if(memoView._isNew){delete memoView._isNew;memos.unshift(memoView);}
+    else{const i=memos.findIndex(x=>x.id===memoView.id);if(i>=0)memos[i]=memoView;}
+    saveMemos();memoView=null;document.getElementById('overlay').innerHTML='';render();
+  },
+  saveDiary(){
+    const g=id=>document.getElementById(id);
+    const title=g('d-title').value.trim();
+    if(!title){alert('タイトルを いれてね');return}
+    memoView.title=title;
+    memoView.date=g('d-date').value||memoView.date;
+    memoView.place=g('d-place').value;
+    memoView.did=g('d-did').value;
+    memoView.felt=g('d-felt').value;
+    memoView.nextDate=g('d-nextdate').value;
+    memoView.nextText=g('d-nexttext').value;
     if(memoView._isNew){delete memoView._isNew;memos.unshift(memoView);}
     else{const i=memos.findIndex(x=>x.id===memoView.id);if(i>=0)memos[i]=memoView;}
     saveMemos();memoView=null;document.getElementById('overlay').innerHTML='';render();
   },
   deleteMemo(){
     if(!memoView)return;
-    if(!confirm('この メモを けしますか？'))return;
+    if(!confirm('これを けしますか？'))return;
     memos=memos.filter(x=>x.id!==memoView.id);
     try{localStorage.setItem('maiken_memos_v1',JSON.stringify(memos))}catch(e){}
     memoView=null;document.getElementById('overlay').innerHTML='';render();
-    pushMemos(); // 即時にクラウドへ反映（削除が復活しないように）
+    pushMemos();
   },
   closeMemo(){memoView=null;document.getElementById('overlay').innerHTML='';},
+  setMemoFilter(kind){memoFilter.kind=kind;saveMemoFilter();render();},
+  addTag(){
+    const v=(document.getElementById('newtag-input').value||'').trim();
+    if(!v)return;
+    if(diaryTags.includes(v)){alert('もう あります');return}
+    diaryTags.push(v);saveDiaryTags();render();
+  },
+  removeTag(i){
+    const t=diaryTags[i];
+    if(!confirm('タグ「'+t+'」を けしますか？\n（日記に ついた タグは そのまま のこります）'))return;
+    diaryTags.splice(i,1);saveDiaryTags();
+    if(memoFilter.tags)memoFilter.tags=memoFilter.tags.filter(x=>x!==t);saveMemoFilter();
+    render();
+  },
+  toggleFilterTag(t){memoFilter.tags=memoFilter.tags||[];const i=memoFilter.tags.indexOf(t);if(i>=0)memoFilter.tags.splice(i,1);else memoFilter.tags.push(t);saveMemoFilter();render();},
   setRepDays(n){repDays=n;render()},
   setLogSub(v){logSub=v;render();},
   /* schedule */
@@ -1138,7 +1206,14 @@ function viewToday(){
     <div class="progress"><div class="progress-fill" style="width:${Math.max(pctNow,8)}%"><span>${pctNow}%</span></div></div>
     <div class="h-sub" style="margin-top:6px">きょうは ${doneNow} / ${totalNow} クリア！<span class="cloud-chip" id="cloud-chip"></span></div>
   </div>`;
-  return cheerBanner+weatherStripHtml()+progressBlock+sec('morning','morning','🌅 あさの ぶ')+
+  // 日記で登録した「つぎの よてい」が今日の日付なら表示
+  const todayPlans=memos.filter(m=>m.kind==='diary'&&m.nextDate===today&&(m.nextText||'').trim());
+  let diaryPlanCard='';
+  if(todayPlans.length){
+    const items=todayPlans.map(m=>`<div class="dplan-item">📌 ${esc(m.nextText)}<span class="dplan-from">（${esc(m.title)}より）</span></div>`).join('');
+    diaryPlanCard=`<div class="dplan-card"><div class="dplan-head">📔 きょうの よてい（日記より）</div>${items}</div>`;
+  }
+  return cheerBanner+diaryPlanCard+weatherStripHtml()+progressBlock+sec('morning','morning','🌅 あさの ぶ')+
     `<div class="input-card"><div class="lbl o">📣 きょうの もくひょう</div>
       <input value="${esc(d.declaration)}" placeholder="きょうは ○○ を がんばる！" onchange="act.text('declaration',this.value)"></div>`+
     sec('evening','evening','🌙 よるの ぶ')+
@@ -1481,30 +1556,56 @@ function renderPlanModal(){
 }
 
 function viewMemo(){
-  const items=memos.length?memos.map(m=>{
-    const preview=(m.body||'').replace(/\n/g,' ').slice(0,40);
+  const f=memoFilter||{kind:'all',tags:[]};
+  // フィルター適用
+  let list=memos.slice();
+  if(f.kind==='memo')list=list.filter(m=>m.kind==='memo');
+  else if(f.kind==='diary')list=list.filter(m=>m.kind==='diary');
+  if(f.kind!=='memo'&&f.tags&&f.tags.length){
+    list=list.filter(m=>m.kind!=='diary'?true:(m.tags||[]).some(t=>f.tags.includes(t)));
+  }
+  const cards=list.length?list.map(m=>{
+    if(m.kind==='diary'){
+      const tagHtml=(m.tags||[]).map(t=>`<span class="dtag">${esc(t)}</span>`).join('');
+      const sub=[m.place,m.did].filter(Boolean).join(' / ').replace(/\n/g,' ').slice(0,44);
+      return `<div class="memo-card diary" onclick="act.openMemo('${m.id}')">
+        <div class="memo-card-head"><span class="memo-card-title">📔 ${esc(m.title)}</span>${m.shared?'<span class="memo-share-badge">👵</span>':''}</div>
+        <div class="memo-card-time">${esc(m.date||m.time||'')}</div>
+        ${sub?`<div class="memo-card-prev">${esc(sub)}</div>`:''}
+        ${tagHtml?`<div class="dtag-row">${tagHtml}</div>`:''}
+      </div>`;
+    }
+    const preview=(m.body||'').replace(/\n/g,' ').slice(0,44);
     return `<div class="memo-card" onclick="act.openMemo('${m.id}')">
-      <div class="memo-card-head"><span class="memo-card-title">${esc(m.title)}</span>${m.shared?'<span class="memo-share-badge">👵 共有中</span>':''}</div>
+      <div class="memo-card-head"><span class="memo-card-title">📝 ${esc(preview||'(メモ)')}</span>${m.shared?'<span class="memo-share-badge">👵</span>':''}</div>
       <div class="memo-card-time">${esc(m.time||'')}</div>
-      ${preview?`<div class="memo-card-prev">${esc(preview)}${m.body&&m.body.length>40?'…':''}</div>`:''}
     </div>`;
-  }).join(''):'<div class="empty">まだ メモは ありません。右下の ＋ で つくれます。</div>';
+  }).join(''):'<div class="empty">まだ ありません。右上の ＋ボタンで つくれます。</div>';
+
+  // フィルターUI
+  const kb=(k,l)=>`<button class="mf-pill ${f.kind===k?'on':''}" onclick="act.setMemoFilter('${k}')">${l}</button>`;
+  const tagFilter=(f.kind!=='memo')?`<div class="mf-tags">${diaryTags.map(t=>`<button class="mf-tag ${(f.tags||[]).includes(t)?'on':''}" onclick="act.toggleFilterTag('${esc(t)}')">${esc(t)}</button>`).join('')}</div>`:'';
+
   return `
     <div class="memo-head">
       <div class="memo-h-title">📝 メモ・日記</div>
-      <button class="memo-add" onclick="act.newMemo()">＋ あたらしい メモ</button>
+      <div style="display:flex;gap:6px">
+        <button class="memo-add" onclick="act.newMemo()">＋メモ</button>
+        <button class="memo-add diary" onclick="act.newDiary()">＋日記</button>
+      </div>
     </div>
-    <div class="memo-list">${items}</div>
-    <div class="rep-note" style="color:#cbd5e1;margin-top:12px">「👵じいじ・ばあばに共有」をオンにしたメモだけ、じいじ・ばあばアプリのメモタブに表示されます。本文のURLはリンクになります。</div>
+    <div class="mf-bar">${kb('all','すべて')}${kb('memo','📝メモ')}${kb('diary','📔日記')}</div>
+    ${tagFilter}
+    <div class="memo-list">${cards}</div>
+    <div class="rep-note" style="color:#cbd5e1;margin-top:12px">「👵共有」をオンにしたものだけ、じいじ・ばあばアプリに表示されます。日記の「つぎの よてい」に日付を入れると、その日の「きょう」画面に出ます。</div>
   `;
 }
 
 function renderMemoView(){
   if(!memoView){document.getElementById('overlay').innerHTML='';return}
   document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeMemo()"><div class="modal" onclick="event.stopPropagation()">
-    <div style="font-size:11px;color:#94a3b8;font-weight:700">${esc(memoView.time||'')} ${memoView.shared?'・👵共有中':''}</div>
-    <h3 style="margin-top:2px">${esc(memoView.title)}</h3>
-    <div class="note-body">${memoView.body?linkify(memoView.body):'<span style="color:#94a3b8">（本文なし）</span>'}</div>
+    <div style="font-size:11px;color:#94a3b8;font-weight:700">📝 ${esc(memoView.time||'')} ${memoView.shared?'・👵共有中':''}</div>
+    <div class="note-body" style="margin-top:8px">${memoView.body?linkify(memoView.body):'<span style="color:#94a3b8">（本文なし）</span>'}</div>
     <div class="m-btns">
       <button class="m-btn m-cancel" style="background:#fee2e2;color:#dc2626" onclick="act.deleteMemo()">けす</button>
       <button class="m-btn m-cancel" onclick="act.closeMemo()">とじる</button>
@@ -1516,10 +1617,9 @@ function renderMemoView(){
 function renderMemoModal(){
   if(!memoView){document.getElementById('overlay').innerHTML='';return}
   document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeMemo()"><div class="modal" onclick="event.stopPropagation()">
-    <h3>${memoView._isNew?'あたらしい メモ':'メモを へんしゅう'}</h3>
-    <div class="f-row"><label>タイトル</label><input id="memo-title" value="${esc(memoView.title||'')}" placeholder="例: きょうの できごと"></div>
+    <h3>${memoView._isNew?'📝 あたらしい メモ':'📝 メモを へんしゅう'}</h3>
     <div class="f-row"><label>本文（URLを かくと リンクに なります）</label>
-      <textarea id="memo-body" style="width:100%;height:180px;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-family:inherit;font-size:14px;line-height:1.7" placeholder="日記や メモを じゆうに…">${esc(memoView.body||'')}</textarea></div>
+      <textarea id="memo-body" style="width:100%;height:180px;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-family:inherit;font-size:14px;line-height:1.7" placeholder="メモを じゆうに…">${esc(memoView.body||'')}</textarea></div>
     <div class="memo-share-row" onclick="act.toggleMemoShare()">
       <div class="memo-switch ${memoView.shared?'on':''}"><div class="memo-knob"></div></div>
       <span>👵 じいじ・ばあばに 共有する</span>
@@ -1527,6 +1627,55 @@ function renderMemoModal(){
     <div class="m-btns">
       <button class="m-btn m-cancel" onclick="act.closeMemo()">やめる</button>
       <button class="m-btn m-save" onclick="act.saveMemo()">ほぞん</button>
+    </div>
+  </div></div>`;
+}
+
+function renderDiaryView(){
+  if(!memoView){document.getElementById('overlay').innerHTML='';return}
+  const m=memoView;
+  const tagHtml=(m.tags||[]).map(t=>`<span class="dtag">${esc(t)}</span>`).join('');
+  const row=(label,val)=>val?`<div class="dv-row"><div class="dv-label">${label}</div><div class="dv-val">${linkify(val)}</div></div>`:'';
+  const nextHtml=(m.nextDate||m.nextText)?`<div class="dv-next">📌 つぎの よてい：${esc(m.nextDate||'')} ${esc(m.nextText||'')}</div>`:'';
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeMemo()"><div class="modal" onclick="event.stopPropagation()">
+    <div style="font-size:11px;color:#94a3b8;font-weight:700">📔 ${esc(m.date||m.time||'')} ${m.shared?'・👵共有中':''}</div>
+    <h3 style="margin-top:2px">${esc(m.title)}</h3>
+    ${tagHtml?`<div class="dtag-row" style="margin-bottom:8px">${tagHtml}</div>`:''}
+    ${row('📍 ばしょ',m.place)}
+    ${row('🏃 したこと',m.did)}
+    ${row('💭 かんじたこと',m.felt)}
+    ${nextHtml}
+    <div class="m-btns">
+      <button class="m-btn m-cancel" style="background:#fee2e2;color:#dc2626" onclick="act.deleteMemo()">けす</button>
+      <button class="m-btn m-cancel" onclick="act.closeMemo()">とじる</button>
+      <button class="m-btn m-save" onclick="act.editMemoFromView()">へんしゅう</button>
+    </div>
+  </div></div>`;
+}
+
+function renderDiaryModal(){
+  if(!memoView){document.getElementById('overlay').innerHTML='';return}
+  const m=memoView;
+  const ta=(id,val,ph,h)=>`<textarea id="${id}" style="width:100%;height:${h||64}px;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-size:14px;line-height:1.6" placeholder="${ph}">${esc(val||'')}</textarea>`;
+  const tagBtns=diaryTags.map(t=>`<button class="dtag-pick ${(m.tags||[]).includes(t)?'on':''}" onclick="act.toggleDiaryTag('${esc(t)}')">${esc(t)}</button>`).join('');
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeMemo()"><div class="modal" onclick="event.stopPropagation()">
+    <h3>${m._isNew?'📔 あたらしい 日記':'📔 日記を へんしゅう'}</h3>
+    <div class="f-row"><label>タイトル</label><input id="d-title" value="${esc(m.title||'')}" placeholder="例: サッカーの しあい"></div>
+    <div class="f-row"><label>日にち</label><input id="d-date" type="date" value="${esc(m.date||'')}"></div>
+    <div class="f-row"><label>タグ（えらぶ・複数OK）</label><div class="dtag-picks">${tagBtns||'<span style=\"color:#94a3b8;font-size:12px\">せっていで タグを ついかできます</span>'}</div></div>
+    <div class="f-row"><label>📍 ばしょ（どこで）</label><input id="d-place" value="${esc(m.place||'')}" placeholder="例: ○○グラウンド"></div>
+    <div class="f-row"><label>🏃 したこと（なにを した）</label>${ta('d-did',m.did,'なにを したかな？')}</div>
+    <div class="f-row"><label>💭 かんじたこと（どう おもった）</label>${ta('d-felt',m.felt,'どんな きもち？')}</div>
+    <div class="f-row"><label>📌 つぎの よてい</label>
+      <input id="d-nextdate" type="date" value="${esc(m.nextDate||'')}" style="margin-bottom:6px">
+      ${ta('d-nexttext',m.nextText,'つぎは なにを する？',48)}</div>
+    <div class="memo-share-row" onclick="act.toggleMemoShare()">
+      <div class="memo-switch ${m.shared?'on':''}"><div class="memo-knob"></div></div>
+      <span>👵 じいじ・ばあばに 共有する</span>
+    </div>
+    <div class="m-btns">
+      <button class="m-btn m-cancel" onclick="act.closeMemo()">やめる</button>
+      <button class="m-btn m-save" onclick="act.saveDiary()">ほぞん</button>
     </div>
   </div></div>`;
 }
@@ -1828,6 +1977,14 @@ function viewSettings(){
     return`<div class="card"><div class="card-title">${label}</div>${rows}${add}</div>`;
   };
   return secEd('morning','🌅 朝の部のメニュー','o')+secEd('evening','🌙 夜の部のメニュー','p')+`
+    <div class="card"><div class="card-title">🏷 日記の タグ</div>
+      <div class="sig-note" style="margin-bottom:8px">日記に つける タグを 管理できます。フィルターで しぼりこめます。</div>
+      <div class="tagmng">${diaryTags.map((t,i)=>`<span class="tagmng-item">${esc(t)}<button onclick="act.removeTag(${i})">×</button></span>`).join('')||'<span style="color:#94a3b8;font-size:12px">タグが ありません</span>'}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="newtag-input" placeholder="例: すいえい" style="flex:1;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-family:inherit">
+        <button class="cbtn t" onclick="act.addTag()">ついか</button>
+      </div>
+    </div>
     <div class="card"><div class="card-title">🌤 天気の ちいき</div>
       <div class="sig-note" style="margin-bottom:8px">いまの ちいき：<b>${esc(weatherLoc.name)}</b></div>
       <div style="display:flex;gap:8px">

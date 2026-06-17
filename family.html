@@ -99,6 +99,15 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .fmemo-title{font-weight:900;font-size:16px;color:#0f766e}
 .fmemo-time{font-size:12px;color:#9ca3af;font-weight:700;margin-top:2px}
 .fmemo-prev{font-size:14px;color:#475569;margin-top:6px;line-height:1.6}
+.fmemo-card.diary{background:#fffbeb;border-color:#fde68a}
+.fdtag-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.fdtag{font-size:12px;font-weight:700;background:#fef3c7;color:#b45309;border-radius:99px;padding:3px 11px}
+.fmf-bar{display:flex;gap:6px;margin-bottom:10px}
+.fmf-pill{flex:1;border:2px solid #fce7f3;background:#fff;font-family:inherit;font-weight:900;font-size:15px;border-radius:10px;padding:10px;cursor:pointer;color:#9ca3af}
+.fmf-pill.on{background:#ec4899;border-color:#ec4899;color:#fff}
+.fmf-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.fmf-tag{border:2px solid #fde68a;background:#fff;font-family:inherit;font-weight:700;font-size:13px;border-radius:99px;padding:6px 14px;cursor:pointer;color:#b45309}
+.fmf-tag.on{background:#f59e0b;border-color:#f59e0b;color:#fff}
 .fcol{position:relative;border-left:1px solid #fce7f3}
 .ftimecol{position:sticky;left:0;z-index:2;background:#fff}
 .fgtime{font-size:10px;color:#9ca3af;text-align:right;padding-right:4px;height:5px;line-height:5px;border-top:none}
@@ -158,6 +167,8 @@ let plans=[];
 let weekStart=1;
 let dayNotes={};
 let sharedMemos=[];
+let famDiaryTags=[];
+let famMemoFilter={kind:'all',tags:[]};
 // 未読バッジ：前回みた時の指紋を localStorage に保存し、変化があればドット表示
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -207,7 +218,8 @@ async function loadAll(silent){
     if(pl&&pl.plans)plans=pl.plans;
     if(pl&&typeof pl.weekStart==='number')weekStart=pl.weekStart;
     if(pl&&pl.dayNotes)dayNotes=normNotes(pl.dayNotes);
-    if(mm&&mm.memos)sharedMemos=mm.memos;
+    if(mm&&mm.memos)sharedMemos=mm.memos.map(m=>{if(m.kind)return m;const t=(m.title&&m.title!=='(タイトルなし)')?m.title:'';return {id:m.id,time:m.time,kind:'memo',body:(t?(t+(m.body?'\n'+m.body:'')):(m.body||'')),shared:true};});
+    if(pl&&Array.isArray(pl.diaryTags))famDiaryTags=pl.diaryTags;
     lastFetch=Date.now();
     // 初回だけ：今の状態を基準値として記録（既読化）。以降の更新で未読ドットが出る。
     if(lsGet('fam_seen_memo')===null)markSeen('memo');
@@ -412,23 +424,59 @@ function openFamNote(d,id){
 }
 function closeFamNote(){const o=document.getElementById('overlay');if(o)o.innerHTML='';}
 function viewMemo(){
-  const items=sharedMemos.length?sharedMemos.map(m=>{
+  const f=famMemoFilter;
+  let list=sharedMemos.slice();
+  if(f.kind==='memo')list=list.filter(m=>m.kind==='memo');
+  else if(f.kind==='diary')list=list.filter(m=>m.kind==='diary');
+  if(f.kind!=='memo'&&f.tags&&f.tags.length){
+    list=list.filter(m=>m.kind!=='diary'?true:(m.tags||[]).some(t=>f.tags.includes(t)));
+  }
+  const items=list.length?list.map(m=>{
+    if(m.kind==='diary'){
+      const tagHtml=(m.tags||[]).map(t=>`<span class="fdtag">${escF(t)}</span>`).join('');
+      const sub=[m.place,m.did].filter(Boolean).join(' / ').replace(/\n/g,' ').slice(0,48);
+      return `<div class="fmemo-card diary" onclick="openFamMemo('${m.id}')">
+        <div class="fmemo-title">📔 ${escF(m.title)}</div>
+        <div class="fmemo-time">${escF(m.date||m.time||'')}</div>
+        ${sub?`<div class="fmemo-prev">${escF(sub)}</div>`:''}
+        ${tagHtml?`<div class="fdtag-row">${tagHtml}</div>`:''}
+      </div>`;
+    }
     const prev=(m.body||'').replace(/\n/g,' ').slice(0,50);
     return `<div class="fmemo-card" onclick="openFamMemo('${m.id}')">
-      <div class="fmemo-title">${escF(m.title)}</div>
+      <div class="fmemo-title">📝 ${escF(prev||'(メモ)')}</div>
       <div class="fmemo-time">${escF(m.time||'')}</div>
-      ${prev?`<div class="fmemo-prev">${escF(prev)}${m.body&&m.body.length>50?'…':''}</div>`:''}
     </div>`;
-  }).join(''):'<div class="empty">まだ 共有された メモは ありません</div>';
-  return `<div class="card"><div class="card-title">📝 たいちゃんからの メモ・日記</div>${items}</div>
+  }).join(''):'<div class="empty">まだ 共有された ものは ありません</div>';
+
+  const kb=(k,l)=>`<button class="fmf-pill ${f.kind===k?'on':''}" onclick="setMemoFilter('${k}')">${l}</button>`;
+  const tagFilter=(f.kind!=='memo'&&famDiaryTags.length)?`<div class="fmf-tags">${famDiaryTags.map(t=>`<button class="fmf-tag ${(f.tags||[]).includes(t)?'on':''}" onclick="toggleFamFilterTag('${escF(t)}')">${escF(t)}</button>`).join('')}</div>`:'';
+
+  return `<div class="card"><div class="card-title">📝 たいちゃんからの メモ・日記</div>
+    <div class="fmf-bar">${kb('all','すべて')}${kb('memo','📝メモ')}${kb('diary','📔日記')}</div>
+    ${tagFilter}
+    ${items}</div>
     <button class="refresh" onclick="loadAll()">↻ いますぐ こうしん</button>`;
 }
+function setMemoFilter(k){famMemoFilter.kind=k;render();}
+function toggleFamFilterTag(t){famMemoFilter.tags=famMemoFilter.tags||[];const i=famMemoFilter.tags.indexOf(t);if(i>=0)famMemoFilter.tags.splice(i,1);else famMemoFilter.tags.push(t);render();}
 function openFamMemo(id){
   const m=sharedMemos.find(x=>x.id===id);if(!m)return;
+  let inner;
+  if(m.kind==='diary'){
+    const tagHtml=(m.tags||[]).map(t=>`<span class="fdtag">${escF(t)}</span>`).join('');
+    const row=(label,val)=>val?`<div style="margin:8px 0"><div style="font-size:12px;color:#9ca3af;font-weight:700">${label}</div><div style="font-size:15px;color:#374151;line-height:1.7;white-space:pre-wrap;word-break:break-word">${linkify(val)}</div></div>`:'';
+    const next=(m.nextDate||m.nextText)?`<div style="margin-top:10px;background:#fef3c7;border-radius:10px;padding:10px 12px;font-weight:700;color:#b45309;font-size:14px">📌 つぎの よてい：${escF(m.nextDate||'')} ${escF(m.nextText||'')}</div>`:'';
+    inner=`<div style="font-size:12px;color:#9ca3af;font-weight:700">📔 ${escF(m.date||m.time||'')}</div>
+      <h3 style="margin-top:2px">${escF(m.title)}</h3>
+      ${tagHtml?`<div class="fdtag-row" style="margin-bottom:8px">${tagHtml}</div>`:''}
+      ${row('📍 ばしょ',m.place)}${row('🏃 したこと',m.did)}${row('💭 かんじたこと',m.felt)}${next}`;
+  }else{
+    inner=`<div style="font-size:12px;color:#9ca3af;font-weight:700">📝 ${escF(m.time||'')}</div>
+      <div style="font-size:15px;line-height:1.9;color:#374151;white-space:pre-wrap;word-break:break-word;background:#f0fdfa;border-radius:12px;padding:14px;margin:10px 0;max-height:360px;overflow:auto">${m.body?linkify(m.body):'<span style="color:#9ca3af">（本文なし）</span>'}</div>`;
+  }
   document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="closeFamNote()"><div class="modal" onclick="event.stopPropagation()">
-    <div style="font-size:12px;color:#9ca3af;font-weight:700">${escF(m.time||'')}</div>
-    <h3 style="margin-top:2px">${escF(m.title)}</h3>
-    <div style="font-size:15px;line-height:1.9;color:#374151;white-space:pre-wrap;word-break:break-word;background:#f0fdfa;border-radius:12px;padding:14px;margin:10px 0;max-height:360px;overflow:auto">${m.body?linkify(m.body):'<span style="color:#9ca3af">（本文なし）</span>'}</div>
+    ${inner}
     <div class="m-btns"><button class="send-btn" style="flex:1;padding:12px" onclick="closeFamNote()">とじる</button></div>
   </div></div>`;
 }
