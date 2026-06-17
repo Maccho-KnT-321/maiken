@@ -216,7 +216,8 @@ svg.line-chart{width:100%;height:160px}
 .tagmng-item button{border:none;background:#f59e0b;color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;font-weight:900;line-height:1}
 .dplan-card{background:linear-gradient(120deg,#fef3c7,#fed7aa);border-radius:14px;padding:12px 14px;margin-bottom:12px}
 .dplan-head{font-weight:900;color:#b45309;font-size:13px;margin-bottom:6px}
-.dplan-item{font-size:14px;color:#7c2d12;font-weight:700;margin:3px 0}
+.dplan-item{font-size:14px;color:#7c2d12;font-weight:700;margin:3px 0;cursor:pointer;padding:4px 0}
+.dplan-item:active{opacity:.6}
 .dplan-from{font-size:11px;color:#a8743c;font-weight:400;margin-left:4px}
 .memo-share-row{display:flex;align-items:center;gap:10px;background:#f0fdfa;border:2px solid #99f6e4;border-radius:12px;padding:12px;margin:6px 0 4px;cursor:pointer;font-weight:700;color:#0f766e;font-size:14px}
 .memo-switch{width:46px;height:26px;border-radius:99px;background:#cbd5e1;position:relative;flex-shrink:0;transition:background .2s}
@@ -326,7 +327,7 @@ svg.line-chart{width:100%;height:160px}
 .modal h3{font-size:15px;margin-bottom:12px}
 .f-row{margin-bottom:10px}
 .f-row label{font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:3px}
-.f-row input{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:9px 10px;font-size:14px;font-family:inherit;font-weight:700}
+.f-row input{width:100%;box-sizing:border-box;border:2px solid #e2e8f0;border-radius:10px;padding:9px 10px;font-size:14px;font-family:inherit;font-weight:700}
 .f-inline{display:flex;gap:10px}
 .f-inline .f-row{flex:1}
 .m-btns{display:flex;gap:10px;margin-top:6px}
@@ -707,8 +708,23 @@ window.act={
   },
   openMemo(id){const m=memos.find(x=>x.id===id);if(!m)return;memoView=Object.assign({},m);if(!memoView.tags)memoView.tags=[];memoView.kind==='diary'?renderDiaryView():renderMemoView();},
   editMemoFromView(){if(!memoView)return;memoView._isNew=false;memoView.kind==='diary'?renderDiaryModal():renderMemoModal();},
-  toggleMemoShare(){if(memoView)memoView.shared=!memoView.shared;memoView.kind==='diary'?renderDiaryModal():renderMemoModal();},
-  toggleDiaryTag(t){if(!memoView)return;memoView.tags=memoView.tags||[];const i=memoView.tags.indexOf(t);if(i>=0)memoView.tags.splice(i,1);else memoView.tags.push(t);renderDiaryModal();},
+  _captureMemoForm(){
+    if(!memoView)return;
+    const g=id=>{const e=document.getElementById(id);return e?e.value:undefined;};
+    if(memoView.kind==='diary'){
+      const t=g('d-title');if(t!==undefined)memoView.title=t;
+      const dt=g('d-date');if(dt!==undefined&&dt)memoView.date=dt;
+      const pl=g('d-place');if(pl!==undefined)memoView.place=pl;
+      const did=g('d-did');if(did!==undefined)memoView.did=did;
+      const fe=g('d-felt');if(fe!==undefined)memoView.felt=fe;
+      const nd=g('d-nextdate');if(nd!==undefined)memoView.nextDate=nd;
+      const nt=g('d-nexttext');if(nt!==undefined)memoView.nextText=nt;
+    }else{
+      const b=g('memo-body');if(b!==undefined)memoView.body=b;
+    }
+  },
+  toggleMemoShare(){if(!memoView)return;this._captureMemoForm();memoView.shared=!memoView.shared;memoView.kind==='diary'?renderDiaryModal():renderMemoModal();},
+  toggleDiaryTag(t){if(!memoView)return;this._captureMemoForm();memoView.tags=memoView.tags||[];const i=memoView.tags.indexOf(t);if(i>=0)memoView.tags.splice(i,1);else memoView.tags.push(t);renderDiaryModal();},
   saveMemo(){
     const body=document.getElementById('memo-body').value;
     if(!body.trim()){alert('本文を いれてね');return}
@@ -1210,10 +1226,10 @@ function viewToday(){
   const todayPlans=memos.filter(m=>m.kind==='diary'&&m.nextDate===today&&(m.nextText||'').trim());
   let diaryPlanCard='';
   if(todayPlans.length){
-    const items=todayPlans.map(m=>`<div class="dplan-item">📌 ${esc(m.nextText)}<span class="dplan-from">（${esc(m.title)}より）</span></div>`).join('');
+    const items=todayPlans.map(m=>`<div class="dplan-item" onclick="act.openMemo('${m.id}')">📌 ${esc(m.nextText)}<span class="dplan-from">（${esc(m.title)}より）→</span></div>`).join('');
     diaryPlanCard=`<div class="dplan-card"><div class="dplan-head">📔 きょうの よてい（日記より）</div>${items}</div>`;
   }
-  return cheerBanner+diaryPlanCard+weatherStripHtml()+progressBlock+sec('morning','morning','🌅 あさの ぶ')+
+  return cheerBanner+weatherStripHtml()+diaryPlanCard+progressBlock+sec('morning','morning','🌅 あさの ぶ')+
     `<div class="input-card"><div class="lbl o">📣 きょうの もくひょう</div>
       <input value="${esc(d.declaration)}" placeholder="きょうは ○○ を がんばる！" onchange="act.text('declaration',this.value)"></div>`+
     sec('evening','evening','🌙 よるの ぶ')+
@@ -1661,13 +1677,13 @@ function renderDiaryModal(){
   document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeMemo()"><div class="modal" onclick="event.stopPropagation()">
     <h3>${m._isNew?'📔 あたらしい 日記':'📔 日記を へんしゅう'}</h3>
     <div class="f-row"><label>タイトル</label><input id="d-title" value="${esc(m.title||'')}" placeholder="例: サッカーの しあい"></div>
-    <div class="f-row"><label>日にち</label><input id="d-date" type="date" value="${esc(m.date||'')}"></div>
+    <div class="f-row"><label>日にち</label><input id="d-date" type="date" value="${esc(m.date||'')}" style="width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none"></div>
     <div class="f-row"><label>タグ（えらぶ・複数OK）</label><div class="dtag-picks">${tagBtns||'<span style=\"color:#94a3b8;font-size:12px\">せっていで タグを ついかできます</span>'}</div></div>
     <div class="f-row"><label>📍 ばしょ（どこで）</label><input id="d-place" value="${esc(m.place||'')}" placeholder="例: ○○グラウンド"></div>
     <div class="f-row"><label>🏃 したこと（なにを した）</label>${ta('d-did',m.did,'なにを したかな？')}</div>
     <div class="f-row"><label>💭 かんじたこと（どう おもった）</label>${ta('d-felt',m.felt,'どんな きもち？')}</div>
     <div class="f-row"><label>📌 つぎの よてい</label>
-      <input id="d-nextdate" type="date" value="${esc(m.nextDate||'')}" style="margin-bottom:6px">
+      <input id="d-nextdate" type="date" value="${esc(m.nextDate||'')}" style="margin-bottom:6px;width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none">
       ${ta('d-nexttext',m.nextText,'つぎは なにを する？',48)}</div>
     <div class="memo-share-row" onclick="act.toggleMemoShare()">
       <div class="memo-switch ${m.shared?'on':''}"><div class="memo-knob"></div></div>
