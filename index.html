@@ -570,7 +570,7 @@ async function pushCloud(){
   if(!cloud.url)return false;
   syncState='saving';updateChip();
   try{
-    const r=await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'push',secret:SYNC_SECRET,tasks,days})});
+    const r=await fetch(cloud.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'push',secret:SYNC_SECRET,tasks,days,tasksTs})});
     const j=await r.json();
     if(!j.ok)throw 0;
     cloud.last=Date.now();saveCloud();
@@ -594,7 +594,22 @@ function mergeDays(remote){
   return n;
 }
 async function autoPull(){
-  try{const j=await pullCloudRaw();if(j&&j.days){const n=mergeDays(j.days);if(n)render()}}catch(e){}
+  try{
+    const j=await pullCloudRaw();
+    let changed=false;
+    if(j&&j.days){if(mergeDays(j.days))changed=true;}
+    // メニュー（予約含む）も同期：クラウドの更新時刻が この端末より新しければ採用
+    if(j&&j.tasks){
+      const cloudTs=Number(j.tasksTs||0);
+      if(cloudTs>Number(tasksTs||0)){
+        tasks=j.tasks;
+        try{localStorage.setItem(LS_TASKS,JSON.stringify(tasks))}catch(e){}
+        tasksTs=cloudTs;try{localStorage.setItem('maiken_tasksts_v1',JSON.stringify(tasksTs))}catch(e){}
+        changed=true;
+      }
+    }
+    if(changed)render();
+  }catch(e){}
 }
 function updateChip(){
   const el=document.getElementById('cloud-chip');if(!el)return;
@@ -605,7 +620,9 @@ function updateChip(){
 }
 
 function load(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb}catch(e){return fb}}
-function saveTasks(){try{localStorage.setItem(LS_TASKS,JSON.stringify(tasks))}catch(e){toast('保存に失敗しました')}queueSync()}
+let tasksTs=load('maiken_tasksts_v1',0);
+function bumpTasksTs(){tasksTs=Date.now();try{localStorage.setItem('maiken_tasksts_v1',JSON.stringify(tasksTs))}catch(e){}}
+function saveTasks(){bumpTasksTs();try{localStorage.setItem(LS_TASKS,JSON.stringify(tasks))}catch(e){toast('保存に失敗しました')}queueSync()}
 function saveDays(){try{localStorage.setItem(LS_DAYS,JSON.stringify(days))}catch(e){toast('保存に失敗しました')}queueSync()}
 
 /* ── date utils ── */
