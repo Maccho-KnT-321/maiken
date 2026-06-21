@@ -222,6 +222,11 @@ svg.line-chart{width:100%;height:160px}
 .dplan-eye:active{background:rgba(255,255,255,.9)}
 .dplan-allhidden{font-size:12px;color:#a8743c;font-weight:700}
 .dplan-hiddenbar{margin-top:8px;font-size:12px;font-weight:900;color:#b45309;cursor:pointer;border-top:1px dashed #f59e0b;padding-top:8px}
+.rsv-badge{display:inline-block;font-size:9px;font-weight:900;border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+.rsv-badge.soon{background:#dbeafe;color:#1d4ed8}
+.rsv-badge.until{background:#fef3c7;color:#b45309}
+.rsv-badge.ended{background:#e2e8f0;color:#64748b}
+.set-item.rsv-dim{opacity:.6}
 .dplan-head{font-weight:900;color:#b45309;font-size:13px;margin-bottom:6px}
 .dplan-item{font-size:14px;color:#7c2d12;font-weight:700;margin:3px 0;cursor:pointer;padding:4px 0}
 .dplan-item:active{opacity:.6}
@@ -612,6 +617,15 @@ setInterval(()=>{const n=ymd();if(n!==today){today=n;render();}else if(tab==='sc
 
 /* ── helpers ── */
 const allTasks=()=>[...tasks.morning,...tasks.evening];
+// 予約：from(開始日)・to(終了日) はいずれも任意。dateにその日が含まれるか
+function isTaskActive(t,date){
+  if(t.from&&date<t.from)return false;
+  if(t.to&&date>t.to)return false;
+  return true;
+}
+// 今日（または指定日）有効なメニューだけ
+function activeTasks(date){const dt=date||today;return allTasks().filter(t=>isTaskActive(t,dt));}
+function activeIn(section,date){const dt=date||today;return tasks[section].filter(t=>isTaskActive(t,dt));}
 const getDay=d=>days[d]||{checks:{},feels:{},records:{},declaration:'',diary:''};
 function patchToday(p){days[today]={...getDay(today),...p};saveDays()}
 const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -641,7 +655,7 @@ window.act={
     if(checks[id]){delete checks[id];delete feels[id];patchToday({checks,feels});render()}
     else{
       checks[id]=true;patchToday({checks});render();
-      if(Object.keys(checks).length===allTasks().length)celebrate();
+      if(Object.keys(checks).length===activeTasks().length)celebrate();
     }
   },
   feel(id,k){
@@ -672,6 +686,15 @@ window.act={
     logChange('削除',t.title,'');
     tasks[section].splice(i,1);if(imgs[rid]){delete imgs[rid];saveImgs()}saveTasks();render();
   },
+  onSwapChange(){
+    const sel=document.getElementById('f-swap');
+    const row=document.getElementById('f-swap-date-row');
+    if(!sel)return;
+    if(sel.value!==''){row.style.display='block';
+      const sd=document.getElementById('f-swapdate').value||today;
+      const ff=document.getElementById('f-from');if(ff)ff.value=sd; // 新メニューの開始日＝入れ替え日
+    }else{row.style.display='none';const ff=document.getElementById('f-from');if(ff)ff.value='';}
+  },
   saveEdit(){
     const g=id=>document.getElementById(id).value;
     const title=g('f-title').trim();
@@ -683,8 +706,27 @@ window.act={
     };
     const rl=g('f-rec').trim();if(rl)item.recordLabel=rl;
     const vd=g('f-video').trim();if(vd)item.video=vd;
+    // 入れ替え（新規時のみ）
+    let swapIdx=-1, swapDate='';
+    const swapEl=document.getElementById('f-swap');
+    if(editing.index===-1&&swapEl&&swapEl.value!==''){
+      swapIdx=Number(swapEl.value);
+      swapDate=(document.getElementById('f-swapdate').value)||today;
+      item.from=swapDate; // 新メニューは入れ替え日から
+    }else{
+      const ff=g('f-from');if(ff)item.from=ff;
+    }
+    const ft=g('f-to');if(ft)item.to=ft;
     if(editing.index===-1){
-      logChange('追加',item.title,(item.min?item.min+'分':'')+(item.recordLabel?' / 記録:'+item.recordLabel:''));
+      // 入れ替え対象に終了日（入れ替え日の前日）をセット
+      if(swapIdx>=0&&tasks[editing.section][swapIdx]){
+        const old=tasks[editing.section][swapIdx];
+        old.to=addDays(swapDate,-1);
+        logChange('変更',old.title,'入れ替えのため '+old.to+'で終了');
+      }
+      const yoyaku=item.from?(' / '+item.from+'から'):'';
+      const swp=swapIdx>=0?('（'+tasks[editing.section][swapIdx].title+'と入れ替え）'):'';
+      logChange('追加',item.title,(item.min?item.min+'分':'')+(item.recordLabel?' / 記録:'+item.recordLabel:'')+yoyaku+swp);
       tasks[editing.section].push(item);
     }else{
       const before=tasks[editing.section][editing.index];
@@ -694,6 +736,8 @@ window.act={
       if(before.min!==item.min)diffs.push('時間 '+before.min+'分→'+item.min+'分');
       if((before.recordLabel||'')!==(item.recordLabel||''))diffs.push('記録ラベル変更');
       if((before.video||'')!==(item.video||''))diffs.push('動画URL変更');
+      if((before.from||'')!==(item.from||''))diffs.push(item.from?('開始日を'+item.from+'に設定'):'開始日の予約を解除');
+      if((before.to||'')!==(item.to||''))diffs.push(item.to?('終了日を'+item.to+'に設定'):'終了日を解除');
       if(pendingImg!==undefined&&pendingImg!==null)diffs.push('図解画像を更新');
       if(pendingImg===null&&imgs[item.id])diffs.push('図解画像を削除');
       if(diffs.length)logChange('変更',item.title,diffs.join(' / '));
@@ -1225,11 +1269,11 @@ function viewToday(){
     </div>`;
   }
   const sec=(key,cls,label)=>{
-    const list=tasks[key];const done=list.filter(t=>d.checks[t.id]).length;
+    const list=activeIn(key);const done=list.filter(t=>d.checks[t.id]).length;
     return`<div class="sec-head ${cls}"><span>${label}</span><span>${done}/${list.length}</span></div>
       <div class="sec-body">${list.map(taskHtml).join('')}</div>`;
   };
-  const doneNow=Object.keys(d.checks).length, totalNow=allTasks().length;
+  const _act=activeTasks();const totalNow=_act.length;const doneNow=_act.filter(t=>d.checks[t.id]).length;
   const pctNow=totalNow?Math.round(doneNow/totalNow*100):0;
   const progressBlock=`<div class="prog-block">
     <div class="progress"><div class="progress-fill" style="width:${Math.max(pctNow,8)}%"><span>${pctNow}%</span></div></div>
@@ -2006,17 +2050,22 @@ function openPrintReport(a){
 
 function viewSettings(){
   const secEd=(key,label,cls)=>{
-    const rows=tasks[key].map((t,i)=>`<div class="set-item">
+    const rows=tasks[key].map((t,i)=>{
+      let badge='';
+      if(t.from&&today<t.from)badge=`<span class="rsv-badge soon">📅 ${t.from}から</span>`;
+      else if(t.to&&today>t.to)badge=`<span class="rsv-badge ended">⏹ ${t.to}で終了</span>`;
+      else if(t.to)badge=`<span class="rsv-badge until">〜${t.to}まで</span>`;
+      return `<div class="set-item ${(t.from&&today<t.from)?'rsv-dim':''}">
       <span class="ico">${t.icon}</span>
-      <div class="info"><div class="ti">${esc(t.title)}</div><div class="su">${t.min}分${t.recordLabel?' ・🏅'+esc(t.recordLabel):''}</div></div>
+      <div class="info"><div class="ti">${esc(t.title)}${badge}</div><div class="su">${t.min}分${t.recordLabel?' ・🏅'+esc(t.recordLabel):''}</div></div>
       <button class="sbtn mv" onclick="act.move('${key}',${i},-1)">↑</button>
       <button class="sbtn mv" onclick="act.move('${key}',${i},1)">↓</button>
       <button class="sbtn ed" onclick="act.openEdit('${key}',${i})">編集</button>
       <button class="sbtn de" onclick="act.remove('${key}',${i})">削除</button>
-    </div>`).join('');
+    </div>`;}).join('');
     const add=tasks[key].length<5
       ?`<button class="add-btn ${cls}" onclick="act.openEdit('${key}',-1)">＋ メニューを追加（最大5つ）</button>`
-      :`<div class="limit-note">※ 各部 5つまで。「枠は厳しく」の設計です</div>`;
+      :`<button class="add-btn ${cls}" onclick="act.openEdit('${key}',-1)" style="opacity:.92">🔄 入れ替えで追加（既存と差し替え）</button><div class="limit-note">※ 表示は各部5つまで。入れ替え予約中だけ一時的に6つ持てます</div>`;
     return`<div class="card"><div class="card-title">${label}</div>${rows}${add}</div>`;
   };
   return secEd('morning','🌅 朝の部のメニュー','o')+secEd('evening','🌙 夜の部のメニュー','p')+`
@@ -2070,7 +2119,7 @@ function renderOverlay(){
   const o=document.getElementById('overlay');
   if(!editing){o.innerHTML='';return}
   const isNew=editing.index===-1;
-  const t=isNew?{icon:'⭐',title:'',desc:'',min:5,recordLabel:'',video:''}:tasks[editing.section][editing.index];
+  const t=isNew?{icon:'⭐',title:'',desc:'',min:5,recordLabel:'',video:'',from:'',to:''}:tasks[editing.section][editing.index];
   const curImg=(!isNew&&pendingImg===undefined&&imgs[t.id])?imgs[t.id]:(typeof pendingImg==='string'?pendingImg:null);
   o.innerHTML=`<div class="modal-bg" onclick="act.closeModal()">
     <div class="modal" onclick="event.stopPropagation()">
@@ -2083,6 +2132,24 @@ function renderOverlay(){
       <div class="f-row"><label>やり方（説明）</label><input id="f-desc" value="${esc(t.desc)}" placeholder="例: 前とび30回 → 後ろとび10回"></div>
       <div class="f-row"><label>🏅 記録ラベル（任意・数字記録をつけたい場合）</label><input id="f-rec" value="${esc(t.recordLabel||'')}" placeholder="例: 連続最高回数（回）"></div>
       <div class="f-row"><label>▶ どうがURL（任意・YouTube等。「やりかた」で見られます）</label><input id="f-video" value="${esc(t.video||'')}" placeholder="https://www.youtube.com/watch?v=…"></div>
+      ${isNew?`<div class="f-row swap-box"><label>🔄 入れ替え（任意）— このメニューと 入れ替える場合</label>
+        <select id="f-swap" style="width:100%;box-sizing:border-box;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700;font-size:14px;background:#fff" onchange="act.onSwapChange()">
+          <option value="">入れ替えなし（ふつうに追加）</option>
+          ${tasks[editing.section].map((x,xi)=>`<option value="${xi}">${esc(x.icon)} ${esc(x.title)} と入れ替え</option>`).join('')}
+        </select>
+        <div id="f-swap-date-row" style="display:none;margin-top:8px">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px">入れ替え日（この日から 新メニューに きりかわります）</div>
+          <input id="f-swapdate" type="date" value="${today}" style="width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none">
+          <div style="font-size:10px;color:#cbd5e1;margin-top:4px">えらんだ メニューは 前日で終了し、この新メニューが その日から始まります。下の「よやく」は じどうで 設定されます。</div>
+        </div>
+      </div>`:''}
+      <div class="f-row"><label>📅 よやく（任意）— いつから／いつまで このメニューを出すか</label>
+        <div class="f-inline" style="gap:8px">
+          <div style="flex:1"><div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px">かいし日（あさってからなど）</div><input id="f-from" type="date" value="${esc(t.from||'')}" style="width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none"></div>
+          <div style="flex:1"><div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px">しゅうりょう日（そつぎょう日・なくてもOK）</div><input id="f-to" type="date" value="${esc(t.to||'')}" style="width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none"></div>
+        </div>
+        <div style="font-size:10px;color:#cbd5e1;margin-top:4px">からっぽなら「ずっと表示」。かいし日を 未来にすると、その日まで「きょう」に出ません。</div>
+      </div>
       <div class="f-row"><label>🖼 図解がぞう（任意・この端末内に保存）</label>
         <div id="f-img-area">${curImg?`<img src="${curImg}" class="hw-thumb"><button class="sbtn de" type="button" onclick="act.imgDelete()">画像を削除</button>`:'<span style="font-size:11px;color:#94a3b8">（画像なし）</span>'}</div>
         <input class="f-file" type="file" accept="image/*" onchange="act.imgPick(this)">
