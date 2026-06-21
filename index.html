@@ -689,11 +689,15 @@ window.act={
   onSwapChange(){
     const sel=document.getElementById('f-swap');
     const row=document.getElementById('f-swap-date-row');
+    const yoyaku=document.getElementById('f-yoyaku-row');
     if(!sel)return;
-    if(sel.value!==''){row.style.display='block';
-      const sd=document.getElementById('f-swapdate').value||today;
-      const ff=document.getElementById('f-from');if(ff)ff.value=sd; // 新メニューの開始日＝入れ替え日
-    }else{row.style.display='none';const ff=document.getElementById('f-from');if(ff)ff.value='';}
+    if(sel.value!==''){
+      row.style.display='block';
+      if(yoyaku)yoyaku.style.display='none'; // 入れ替え時は よやく欄を隠す（入れ替え日に一本化）
+    }else{
+      row.style.display='none';
+      if(yoyaku)yoyaku.style.display='';
+    }
   },
   saveEdit(){
     const g=id=>document.getElementById(id).value;
@@ -2143,7 +2147,7 @@ function renderOverlay(){
           <div style="font-size:10px;color:#cbd5e1;margin-top:4px">えらんだ メニューは 前日で終了し、この新メニューが その日から始まります。下の「よやく」は じどうで 設定されます。</div>
         </div>
       </div>`:''}
-      <div class="f-row"><label>📅 よやく（任意）— いつから／いつまで このメニューを出すか</label>
+      <div class="f-row" id="f-yoyaku-row"><label>📅 よやく（任意）— いつから／いつまで このメニューを出すか</label>
         <div class="f-inline" style="gap:8px">
           <div style="flex:1"><div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px">かいし日（あさってからなど）</div><input id="f-from" type="date" value="${esc(t.from||'')}" style="width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none"></div>
           <div style="flex:1"><div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px">しゅうりょう日（そつぎょう日・なくてもOK）</div><input id="f-to" type="date" value="${esc(t.to||'')}" style="width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none"></div>
