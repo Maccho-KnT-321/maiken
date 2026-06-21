@@ -129,6 +129,7 @@ body{
 .clog-type.edit{background:#dbeafe;color:#1d4ed8}
 .clog-type.del{background:#fee2e2;color:#dc2626}
 .clog-detail{font-size:11px;color:#64748b;margin-top:2px}
+.clog-more{margin-top:10px;text-align:center;font-size:12px;font-weight:900;color:#7c3aed;cursor:pointer;padding:6px;border-top:1px dashed #ddd6fe}
 svg.line-chart{width:100%;height:160px}
 
 /* settings */
@@ -833,6 +834,8 @@ window.act={
   },
   closeMemo(){memoView=null;document.getElementById('overlay').innerHTML='';},
   setMemoFilter(kind){memoFilter.kind=kind;saveMemoFilter();render();},
+  toggleChangelog(){showAllChangelog=!showAllChangelog;render();},
+  toggleDiaryList(){showAllDiary=!showAllDiary;render();},
   hidePlan(key){if(!hiddenPlans.includes(key))hiddenPlans.push(key);saveHiddenPlans();render();},
   showPlan(key){hiddenPlans=hiddenPlans.filter(k=>k!==key);saveHiddenPlans();render();},
   toggleHiddenPlans(){showHiddenPlans=!showHiddenPlans;render();},
@@ -1843,12 +1846,21 @@ function viewReport(){
   `;
 }
 
+let showAllChangelog=false;
+let showAllDiary=false;
 function changelogHtml(){
   if(!changelog||!changelog.length)return '<div class="empty">メニューを 追加・変更すると ここに きろくが のこります</div>';
   const icon={'追加':'➕','変更':'✏️','削除':'🗑'};
-  return '<div class="clog-list">'+changelog.slice(0,30).map(function(e){
+  const rowHtml=function(e){
     return `<div class="clog-item"><div class="clog-t">${esc(e.t)}</div><div class="clog-body"><span class="clog-type ${e.type==='削除'?'del':e.type==='追加'?'add':'edit'}">${icon[e.type]||''} ${esc(e.type)}</span> <b>${esc(e.name)}</b>${e.detail?`<div class="clog-detail">${esc(e.detail)}</div>`:''}</div></div>`;
-  }).join('')+'</div>';
+  };
+  const all=changelog.slice(0,30);
+  const shown=showAllChangelog?all:all.slice(0,3);
+  let html='<div class="clog-list">'+shown.map(rowHtml).join('')+'</div>';
+  if(all.length>3){
+    html+=`<div class="clog-more" onclick="act.toggleChangelog()">${showAllChangelog?'▲ とじる':'▼ もっと見る（あと '+(all.length-3)+'件）'}</div>`;
+  }
+  return html;
 }
 
 // きろくタブ：レポートとログを重複なく1本に統合
@@ -1894,10 +1906,16 @@ function viewReportAndLog(){
   const sigHtml=sigRows.length===0?`<div class="empty">チェック後の「きもち」が たまると ここに 出ます</div>`
     :sigRows.map(s=>`<div class="sig-row"><span>${s.t.icon}</span><span class="name">${esc(s.t.title)}</span><span class="sig-love">😆×${s.love}</span><span class="sig-sub">🙂×${s.ok}</span><span class="sig-sub">😮‍💨×${s.meh}</span></div>`).join('')+`<div class="sig-note">😆が多いメニュー＝投資候補。😮‍💨が続くメニューは形を変えるか入れ替えを検討（3ヶ月ルール）</div>`;
 
-  // 日記
-  const dEnts=Object.entries(days).filter(([,v])=>v.diary||v.declaration).sort(([a],[b])=>a>b?-1:1).slice(0,7);
-  const dHtml=dEnts.length===0?`<div class="empty">にっきを かくと ここに たまっていくよ</div>`
-    :dEnts.map(([dd,v])=>`<div class="diary-row"><span class="diary-d">${fmtJp(dd)}</span>${v.declaration?`<div>📣 ${esc(v.declaration)}</div>`:''}${v.diary?`<div class="diary-t">📔 ${esc(v.diary)}</div>`:''}</div>`).join('');
+  // 日記（常時3件＋展開）
+  const dAll=Object.entries(days).filter(([,v])=>v.diary||v.declaration).sort(([a],[b])=>a>b?-1:1).slice(0,30);
+  const diaryRow=([dd,v])=>`<div class="diary-row"><span class="diary-d">${fmtJp(dd)}</span>${v.declaration?`<div>📣 ${esc(v.declaration)}</div>`:''}${v.diary?`<div class="diary-t">📔 ${esc(v.diary)}</div>`:''}</div>`;
+  let dHtml;
+  if(dAll.length===0)dHtml=`<div class="empty">にっきを かくと ここに たまっていくよ</div>`;
+  else{
+    const dShown=showAllDiary?dAll:dAll.slice(0,3);
+    dHtml=dShown.map(diaryRow).join('');
+    if(dAll.length>3)dHtml+=`<div class="clog-more" onclick="act.toggleDiaryList()">${showAllDiary?'▲ とじる':'▼ もっと見る（あと '+(dAll.length-3)+'件）'}</div>`;
+  }
 
   const insHtml=ins.map(([type,ico,txt])=>{const cls=type==='good'?'ins-good':type==='warn'?'ins-warn':'ins-idea';return `<div class="ins-item"><span class="ins-ico">${ico}</span><span><span class="${cls}">●</span> ${esc(txt)}</span></div>`;}).join('');
 
