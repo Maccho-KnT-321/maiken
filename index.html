@@ -138,6 +138,7 @@ body{
 .rec-block{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #f1f5f9}
 .rec-block-head{font-weight:900;font-size:15px;color:#1e293b;margin-bottom:6px}
 .rec-best{font-size:13px;color:#7c3aed;font-weight:700;margin-bottom:4px}
+.rec-otherbtn{background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff;width:100%;margin-top:14px}
 svg.line-chart{width:100%;height:160px}
 
 /* settings */
@@ -1952,18 +1953,24 @@ function viewReportAndLog(){
       return ds.length?ds[ds.length-1]:'';
     };
     const withDate=recTasksAll.map(t=>({t,last:lastDateOf(t)})).filter(x=>x.last);
-    let chartHtml='', latestTask=null;
+    let chartInner='', latestTask=null;
     if(withDate.length){
       withDate.sort((a,b)=>a.last<b.last?1:-1); // 新しい順
       latestTask=withDate[0].t;
-      chartHtml=`<div class="card"><div class="card-title">🏅 ${esc(latestTask.recordLabel||latestTask.title)}</div>${recChartSvg(latestTask)}</div>`;
+      chartInner=`<div class="card-title">🏅 ${esc(latestTask.recordLabel||latestTask.title)}</div>${recChartSvg(latestTask)}`;
+    }else{
+      chartInner=`<div class="card-title">🏅 きろく</div>`;
     }
     const others=recTasksAll.length-(latestTask?1:0);
-    const label=latestTask?('ほかの きろくも 見る（'+others+'こ）'):('いろんな きろくを 見る（'+recTasksAll.length+'こ）');
-    const btn=`<div class="card"><div class="card-title">🏅 きろく</div>
-      <button class="rep-btn" style="background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff;width:100%" onclick="act.openRecords()">🏅 ${label}</button>
-    </div>`;
-    recHtml=chartHtml+btn;
+    // ボタンは「直近以外」がある時だけ。直近グラフが無い時は全件ボタン。
+    let btnHtml='';
+    if(latestTask&&others>0){
+      btnHtml=`<button class="rep-btn rec-otherbtn" onclick="act.openRecords()">🏅 ほかの きろくも 見る（${others}こ）</button>`;
+    }else if(!latestTask){
+      btnHtml=`<button class="rep-btn rec-otherbtn" onclick="act.openRecords()">🏅 いろんな きろくを 見る（${recTasksAll.length}こ）</button>`;
+    }
+    // 同じカード内にグラフ＋ボタンをまとめる
+    recHtml=`<div class="card">${chartInner}${btnHtml}</div>`;
   }
 
   // 熱中シグナル
