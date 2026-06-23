@@ -466,7 +466,7 @@ function wxIconSvg(code){
 async function fetchWeather(){
   if(!weatherLoc||weatherLoc.lat==null)return;
   try{
-    const u=`https://api.open-meteo.com/v1/forecast?latitude=${weatherLoc.lat}&longitude=${weatherLoc.lon}&hourly=weathercode,precipitation_probability,temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=1`;
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${weatherLoc.lat}&longitude=${weatherLoc.lon}&hourly=weathercode,precipitation,temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=1`;
     const r=await fetch(u);const j=await r.json();
     if(!j||!j.hourly)return;
     const H=j.hourly;
@@ -474,7 +474,7 @@ async function fetchWeather(){
     const hours=[];
     for(let h=6;h<=22;h+=2){
       const idx=H.time.findIndex(t=>t.endsWith(String(h).padStart(2,'0')+':00'));
-      if(idx>=0)hours.push({h,code:H.weathercode[idx],pop:H.precipitation_probability?H.precipitation_probability[idx]:null,temp:H.temperature_2m?Math.round(H.temperature_2m[idx]):null});
+      if(idx>=0)hours.push({h,code:H.weathercode[idx],mm:H.precipitation?H.precipitation[idx]:null,temp:H.temperature_2m?Math.round(H.temperature_2m[idx]):null});
     }
     weatherData={
       hours,
@@ -1227,7 +1227,9 @@ function weatherStripHtml(){
   const cells=weatherData.hours.map(s=>{
     const col=(s.h-WX_START)+1; // grid列（1始まり）
     const isNow=(nowH>=s.h&&nowH<s.h+2); // この2時間枠に現在時刻が入る
-    const rain=(s.pop!=null&&s.pop>=20)?`<div class="wx-pop">☔${s.pop}%</div>`:`<div class="wx-pop dim">${s.pop!=null?s.pop+'%':''}</div>`;
+    let rain;
+    if(s.mm!=null&&s.mm>=0.1){const mmTxt=(s.mm<1?s.mm.toFixed(1):Math.round(s.mm))+'mm';rain=`<div class="wx-pop">💧${mmTxt}</div>`;}
+    else{rain=`<div class="wx-pop dim">${s.mm!=null?'0mm':''}</div>`;}
     return `<div class="wx-hour ${isNow?'now':''}" style="grid-column:${col} / span 2"><div class="wx-h">${s.h}時</div><div class="wx-ic">${wxIconSvg(s.code)}</div>${s.temp!=null?`<div class="wx-t">${s.temp}°</div>`:''}${rain}</div>`;
   }).join('');
   const tmax=(weatherData.tmax!=null)?`<span class="wx-hi">最高 ${weatherData.tmax}°</span>`:'';
