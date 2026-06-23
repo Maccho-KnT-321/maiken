@@ -48,6 +48,9 @@ body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:linear-gra
 .diary .dt{font-size:17px;font-weight:700;color:#374151;margin-top:2px}
 .record-line{font-size:15px;color:#6b7280;margin-top:6px}
 .record-line b{color:#ec4899;font-size:20px}
+.frec-block{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #f1f5f9}
+.frec-head{font-weight:900;font-size:16px;color:#1e293b;margin-bottom:6px}
+.frec-stats{font-size:14px;color:#7c3aed;font-weight:700;margin-bottom:6px}
 .cheer-btns{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
 .cheer-btn{border:none;font-family:inherit;font-weight:900;font-size:18px;border-radius:16px;padding:14px 10px;cursor:pointer;background:linear-gradient(135deg,#fce7f3,#fed7aa);color:#be185d;flex:1;min-width:120px;box-shadow:0 4px 12px rgba(236,72,153,.15)}
 .cheer-btn:active{transform:scale(.96)}
@@ -558,6 +561,33 @@ function viewSchedule(){
   `;
 }
 
+function recChartSvgF(task){
+  const unit=task.recordUnit||'かい';
+  const pts=Object.entries(days).filter(([,v])=>v.records&&v.records[task.id]!=null).sort(([a],[b])=>a<b?-1:1).slice(-20).map(([dd,v])=>({d:dd.slice(5).replace('-','/'),v:v.records[task.id]}));
+  if(pts.length===0)return `<div class="empty">まだ きろくが ないよ</div>`;
+  const best=Math.max(...pts.map(p=>p.v));
+  const latest=pts[pts.length-1].v;
+  const W=640,H=150,pad=28;const maxV=Math.max(best,1);
+  const x=i=>pts.length===1?W/2:pad+i*(W-pad*2)/(pts.length-1);const y=v=>H-18-(v/maxV)*(H-40);
+  const line=pts.map((p,i)=>`${i?'L':'M'}${x(i)},${y(p.v)}`).join(' ');
+  const dots=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="4.5" fill="#8b5cf6"/><text x="${x(i)}" y="${y(p.v)-9}" font-size="11" font-weight="900" fill="#7c3aed" text-anchor="middle">${p.v}</text>`).join('');
+  const labels=pts.map((p,i)=>(pts.length<=8||i%2===0)?`<text x="${x(i)}" y="${H-4}" font-size="9" fill="#94a3b8" text-anchor="middle">${p.d}</text>`:'').join('');
+  const svg=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:auto;background:#faf5ff;border-radius:10px"><path d="${line}" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round"/>${dots}${labels}</svg>`;
+  return `<div class="frec-stats">いまの きろく：<b>${latest}${escF(unit)}</b> ／ さいこう：<b>${best}${escF(unit)}</b></div>${svg}`;
+}
+function openRecords(){
+  const recTasks=(tasks.morning||[]).concat(tasks.evening||[]).filter(t=>t.recordLabel);
+  const body=recTasks.length?recTasks.map(t=>`<div class="frec-block">
+    <div class="frec-head">${escF(t.icon)} ${escF(t.recordLabel||t.title)}</div>
+    ${recChartSvgF(t)}
+  </div>`).join(''):'<div class="empty">記録の メニューが ありません</div>';
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="closeRecords()"><div class="modal" onclick="event.stopPropagation()" style="max-width:520px">
+    <h3>🏅 いろんな きろく</h3>
+    <div style="max-height:70vh;overflow:auto;margin-top:8px">${body}</div>
+    <div class="m-btns"><button class="send-btn" style="flex:1;padding:12px" onclick="closeRecords()">とじる</button></div>
+  </div></div>`;
+}
+function closeRecords(){const o=document.getElementById('overlay');if(o)o.innerHTML='';}
 function viewHome(){
   const total=Math.max(allTasks().length,1);
   // 今日
@@ -582,17 +612,12 @@ function viewHome(){
   while(dayDone(cur)>0){streak++;cur=addDays(cur,-1)}
 
   const diaries=Object.entries(days).filter(([,v])=>v.diary).sort(([a],[b])=>a>b?-1:1).slice(0,4);
-  const recTask=all.find(t=>t.recordLabel);
+  const recTasksAll=all.filter(t=>t.recordLabel);
   let recordHtml='';
-  if(recTask){
-    const pts=Object.entries(days).filter(([,v])=>v.records&&v.records[recTask.id]!=null).sort(([a],[b])=>a<b?-1:1);
-    if(pts.length){
-      const best=Math.max(...pts.map(([,v])=>v.records[recTask.id]));
-      const latest=pts[pts.length-1][1].records[recTask.id];
-      recordHtml=`<div class="card"><div class="card-title">🏅 ${esc(recTask.title)}</div>
-        <div class="record-line">いまの きろく： <b>${latest}</b> かい</div>
-        <div class="record-line">これまでの さいこう： <b>${best}</b> かい</div></div>`;
-    }
+  if(recTasksAll.length){
+    recordHtml=`<div class="card"><div class="card-title">🏅 きろく</div>
+      <button class="refresh" style="background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff" onclick="openRecords()">🏅 いろんな きろくを 見る（${recTasksAll.length}こ）</button>
+    </div>`;
   }
   const weekHtml=wd.map(x=>`<div class="wd"><div class="wd-circle ${x.c>0?'done':'none'} ${x.td?'tdy':''}">${x.c>0?(x.c>=total?'💯':'⭕'):'・'}</div><div class="wd-lbl">${x.w}</div></div>`).join('');
   const diaryHtml=diaries.length?diaries.map(([d,v])=>`<div class="diary"><div class="dd">${fmtJp(d)}</div><div class="dt">📔 ${esc(v.diary)}</div></div>`).join(''):'<div class="empty">まだ にっきは ないよ</div>';

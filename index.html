@@ -31,7 +31,9 @@ body{
 .wx-box{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 6px 8px;margin-top:10px}
 .wx-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 8px}
 .wx-info{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;flex:1;min-width:0;cursor:pointer}
-.wx-loc{font-size:12px;font-weight:700;color:#fff;opacity:.95;white-space:nowrap}
+.wx-loc{font-size:12px;font-weight:700;color:#fff;opacity:.95;white-space:nowrap;text-decoration:none;cursor:pointer}
+.wx-loc:active{opacity:.7}
+.wx-range{cursor:pointer}
 .wx-range{font-size:12px;font-weight:900;white-space:nowrap}
 .wx-hi{color:#fca5a5;margin-right:8px}
 .wx-lo{color:#93c5fd}
@@ -45,7 +47,8 @@ body{
 .wx-hour.now{background:linear-gradient(160deg,rgba(251,146,60,.55),rgba(244,63,94,.45));box-shadow:0 0 0 2px #fbbf24 inset;color:#fff}
 .wx-nowtag{position:absolute;top:-7px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#fff;font-size:8px;font-weight:900;border-radius:99px;padding:1px 7px;white-space:nowrap}
 .wx-h{font-size:10px;opacity:.8;font-weight:700}
-.wx-ic{font-size:20px;line-height:1.3}
+.wx-ic{font-size:20px;line-height:1;display:flex;justify-content:center;align-items:center;height:28px}
+.wx-svg{display:block}
 .wx-t{font-size:13px;font-weight:900}
 .wx-pop{font-size:9px;color:#bae6fd;font-weight:700}
 .wx-pop.dim{opacity:.4;color:#fff}
@@ -130,6 +133,11 @@ body{
 .clog-type.del{background:#fee2e2;color:#dc2626}
 .clog-detail{font-size:11px;color:#64748b;margin-top:2px}
 .clog-more{margin-top:10px;text-align:center;font-size:12px;font-weight:900;color:#7c3aed;cursor:pointer;padding:6px;border-top:1px dashed #ddd6fe}
+.rec-inwrap{display:inline-flex;align-items:center;gap:4px}
+.rec-unit{font-size:12px;font-weight:900;color:#64748b}
+.rec-block{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #f1f5f9}
+.rec-block-head{font-weight:900;font-size:15px;color:#1e293b;margin-bottom:6px}
+.rec-best{font-size:13px;color:#7c3aed;font-weight:700;margin-bottom:4px}
 svg.line-chart{width:100%;height:160px}
 
 /* settings */
@@ -435,6 +443,26 @@ function wxIcon(code){
   if([95,96,99].includes(code))return['⛈','かみなり'];
   return['🌡',''];
 }
+// 白黒で見にくいので、色付きSVGアイコンを返す（太陽=オレンジ、くもり=グレー、雨=青、雪=水色、雷=紫）
+function wxIconSvg(code){
+  const sun='<circle cx="12" cy="12" r="5" fill="#fbbf24"/>'+
+    [0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;const x1=12+Math.cos(r)*7.5,y1=12+Math.sin(r)*7.5,x2=12+Math.cos(r)*9.5,y2=12+Math.sin(r)*9.5;return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round"/>`;}).join('');
+  const cloud=(col)=>`<path d="M7 16 a4 4 0 0 1 0.5 -7.9 a5 5 0 0 1 9.6 1.4 a3.5 3.5 0 0 1 -0.6 6.5 z" fill="${col}"/>`;
+  const sunSmall='<circle cx="8" cy="8" r="3.2" fill="#fbbf24"/>';
+  const rainDrops='<line x1="8" y1="17" x2="7" y2="21" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/><line x1="12" y1="17" x2="11" y2="21" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/><line x1="16" y1="17" x2="15" y2="21" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/>';
+  const snow='<text x="8" y="21" font-size="7" fill="#38bdf8">❄</text><text x="13" y="22" font-size="6" fill="#38bdf8">❄</text>';
+  const bolt='<polygon points="11,16 14,16 10,23 12,18 9,18" fill="#a855f7"/>';
+  let inner;
+  if(code===0)inner=sun;                                  // 快晴
+  else if([1,2].includes(code))inner=sunSmall+cloud('#cbd5e1');   // 晴れ時々曇り
+  else if(code===3)inner=cloud('#94a3b8');                // 曇り（グレー）
+  else if([45,48].includes(code))inner=cloud('#cbd5e1');  // 霧
+  else if([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code))inner=cloud('#93c5fd')+rainDrops; // 雨（青）
+  else if([71,73,75,77,85,86].includes(code))inner=cloud('#bae6fd')+snow; // 雪
+  else if([95,96,99].includes(code))inner=cloud('#94a3b8')+bolt;  // 雷
+  else inner=cloud('#cbd5e1');
+  return `<svg class="wx-svg" viewBox="0 0 24 24" width="26" height="26">${inner}</svg>`;
+}
 async function fetchWeather(){
   if(!weatherLoc||weatherLoc.lat==null)return;
   try{
@@ -635,6 +663,7 @@ setInterval(()=>{const n=ymd();if(n!==today){today=n;render();}else if(tab==='sc
 
 /* ── helpers ── */
 const allTasks=()=>[...tasks.morning,...tasks.evening];
+const REC_UNITS=['かい','びょう','ふん','センチ','メートル','キロ'];
 // 予約：from(開始日)・to(終了日) はいずれも任意。dateにその日が含まれるか
 function isTaskActive(t,date){
   if(t.from&&date<t.from)return false;
@@ -727,6 +756,7 @@ window.act={
       min:Number(g('f-min'))||1,
     };
     const rl=g('f-rec').trim();if(rl)item.recordLabel=rl;
+    const ru=document.getElementById('f-recunit');if(ru)item.recordUnit=ru.value;
     const vd=g('f-video').trim();if(vd)item.video=vd;
     // 入れ替え（新規時のみ）
     let swapIdx=-1, swapDate='';
@@ -836,6 +866,8 @@ window.act={
   setMemoFilter(kind){memoFilter.kind=kind;saveMemoFilter();render();},
   toggleChangelog(){showAllChangelog=!showAllChangelog;render();},
   toggleDiaryList(){showAllDiary=!showAllDiary;render();},
+  openRecords(){renderRecordsModal();},
+  closeRecords(){document.getElementById('overlay').innerHTML='';},
   hidePlan(key){if(!hiddenPlans.includes(key))hiddenPlans.push(key);saveHiddenPlans();render();},
   showPlan(key){hiddenPlans=hiddenPlans.filter(k=>k!==key);saveHiddenPlans();render();},
   toggleHiddenPlans(){showHiddenPlans=!showHiddenPlans;render();},
@@ -1193,11 +1225,10 @@ function weatherStripHtml(){
   // 天気コマ（2時間おき）：時間軸グリッド上に配置
   const nowH=new Date().getHours();
   const cells=weatherData.hours.map(s=>{
-    const[ic,]=wxIcon(s.code);
     const col=(s.h-WX_START)+1; // grid列（1始まり）
     const isNow=(nowH>=s.h&&nowH<s.h+2); // この2時間枠に現在時刻が入る
     const rain=(s.pop!=null&&s.pop>=20)?`<div class="wx-pop">☔${s.pop}%</div>`:`<div class="wx-pop dim">${s.pop!=null?s.pop+'%':''}</div>`;
-    return `<div class="wx-hour ${isNow?'now':''}" style="grid-column:${col} / span 2"><div class="wx-h">${s.h}時</div><div class="wx-ic">${ic}</div>${s.temp!=null?`<div class="wx-t">${s.temp}°</div>`:''}${rain}</div>`;
+    return `<div class="wx-hour ${isNow?'now':''}" style="grid-column:${col} / span 2"><div class="wx-h">${s.h}時</div><div class="wx-ic">${wxIconSvg(s.code)}</div>${s.temp!=null?`<div class="wx-t">${s.temp}°</div>`:''}${rain}</div>`;
   }).join('');
   const tmax=(weatherData.tmax!=null)?`<span class="wx-hi">最高 ${weatherData.tmax}°</span>`:'';
   const tmin=(weatherData.tmin!=null)?`<span class="wx-lo">最低 ${weatherData.tmin}°</span>`:'';
@@ -1223,9 +1254,9 @@ function weatherStripHtml(){
   const planToggle=todays.length?`<button class="wx-plantoggle" onclick="act.togglePlanBar()">${showPlanBar?'よてい ▲':'よてい ▼'}</button>`:'';
   return `<div class="wx-box">
     <div class="wx-top">
-      <div class="wx-info" onclick="act.setTab('settings')" title="地点はせっていで変更">
-        <span class="wx-loc">📍${esc(weatherLoc.name)}</span>
-        <span class="wx-range">${tmax} ${tmin}</span>
+      <div class="wx-info">
+        <a class="wx-loc" href="https://weather.yahoo.co.jp/weather/search/?p=${encodeURIComponent((weatherLoc.name||'').replace(/（.*$/,''))}" target="_blank" rel="noopener" title="Yahoo!天気で この地点を見る">📍${esc(weatherLoc.name)} 🔗</a>
+        <span class="wx-range" onclick="act.setTab('settings')" title="地点はせっていで変更">${tmax} ${tmin}</span>
       </div>
       ${planToggle}
     </div>
@@ -1267,8 +1298,9 @@ function taskHtml(t){
       FEELS.map(f=>`<button class="feel ${d.feels[t.id]===f.key?'on':''}" onclick="act.feel('${t.id}','${f.key}')">${f.emoji} ${f.label}</button>`).join('');
     if(t.recordLabel){
       const val=d.records[t.id]!=null?d.records[t.id]:'';
+      const unit=t.recordUnit||'かい';
       extra+=`<label class="rec-label">🏅 ${esc(t.recordLabel)}
-        <input class="rec-input" type="number" min="0" value="${val}" onchange="act.record('${t.id}',this.value)"></label>`;
+        <span class="rec-inwrap"><input class="rec-input" type="number" min="0" value="${val}" onchange="act.record('${t.id}',this.value)"><span class="rec-unit">${esc(unit)}</span></span></label>`;
     }
     extra+=`</div>`;
   }
@@ -1847,6 +1879,31 @@ function viewReport(){
 }
 
 let showAllChangelog=false;
+function recChartSvg(task){
+  const unit=task.recordUnit||'かい';
+  const pts=Object.entries(days).filter(([,v])=>v.records&&v.records[task.id]!=null).sort(([a],[b])=>a<b?-1:1).slice(-20).map(([dd,v])=>({d:dd.slice(5).replace('-','/'),v:v.records[task.id]}));
+  if(pts.length===0)return `<div class="empty">まだ きろくが ないよ</div>`;
+  const best=Math.max(...pts.map(p=>p.v));
+  const W=640,H=150,pad=28;const maxV=Math.max(best,1);
+  const x=i=>pts.length===1?W/2:pad+i*(W-pad*2)/(pts.length-1);const y=v=>H-18-(v/maxV)*(H-40);
+  const line=pts.map((p,i)=>`${i?'L':'M'}${x(i)},${y(p.v)}`).join(' ');
+  const dots=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="4.5" fill="#8b5cf6"/><text x="${x(i)}" y="${y(p.v)-9}" font-size="11" font-weight="900" fill="#7c3aed" text-anchor="middle">${p.v}</text>`).join('');
+  const labels=pts.map((p,i)=>(pts.length<=8||i%2===0)?`<text x="${x(i)}" y="${H-4}" font-size="9" fill="#94a3b8" text-anchor="middle">${p.d}</text>`:'').join('');
+  const svg=`<svg class="line-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${line}" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round"/>${dots}${labels}</svg>`;
+  return `<div class="rec-best">さいこうきろく：<b>${best}${esc(unit)}</b></div>${svg}`;
+}
+function renderRecordsModal(){
+  const recTasks=allTasks().filter(t=>t.recordLabel);
+  const body=recTasks.length?recTasks.map(t=>`<div class="rec-block">
+    <div class="rec-block-head">${esc(t.icon)} ${esc(t.recordLabel||t.title)}</div>
+    ${recChartSvg(t)}
+  </div>`).join(''):'<div class="empty">記録ラベルを 設定した メニューが ありません</div>';
+  document.getElementById('overlay').innerHTML=`<div class="modal-bg" onclick="act.closeRecords()"><div class="modal" onclick="event.stopPropagation()" style="max-width:520px">
+    <h3>🏅 いろんな きろく</h3>
+    <div style="max-height:70vh;overflow:auto;margin-top:8px">${body}</div>
+    <div class="m-btns"><button class="m-btn m-save" onclick="act.closeRecords()">とじる</button></div>
+  </div></div>`;
+}
 let showAllDiary=false;
 function changelogHtml(){
   if(!changelog||!changelog.length)return '<div class="empty">メニューを 追加・変更すると ここに きろくが のこります</div>';
@@ -1883,20 +1940,13 @@ function viewReportAndLog(){
   for(let i=6;i>=0;i--){const dd=addDays(today,-i);const c=Object.keys(getDay(dd).checks).length;wk.push([dd,c]);if(c>maxC)maxC=c;}
   wk.forEach(([dd,c])=>{bars+=`<div class="bar-col"><div class="bar-v">${c||''}</div><div class="bar" style="height:${c/Math.max(maxC,total)*100}%"></div><div class="bar-d">${dd.slice(5).replace('-','/')}</div></div>`;});
 
-  // 記録の推移
-  const recTask=allTasks().find(t=>t.recordLabel);
+  // 記録メニュー → 「いろんなきろく」ボタン
+  const recTasksAll=allTasks().filter(t=>t.recordLabel);
   let recHtml='';
-  if(recTask){
-    const pts=Object.entries(days).filter(([,v])=>v.records&&v.records[recTask.id]!=null).sort(([a],[b])=>a<b?-1:1).slice(-20).map(([dd,v])=>({d:dd.slice(5).replace('-','/'),v:v.records[recTask.id]}));
-    let inner;
-    if(pts.length===0)inner=`<div class="empty">まだ きろくが ないよ。チェックしたら 数字を いれてみよう！</div>`;
-    else{const W=640,H=150,pad=28;const maxV=Math.max(...pts.map(p=>p.v),1);
-      const x=i=>pts.length===1?W/2:pad+i*(W-pad*2)/(pts.length-1);const y=v=>H-18-(v/maxV)*(H-40);
-      const line=pts.map((p,i)=>`${i?'L':'M'}${x(i)},${y(p.v)}`).join(' ');
-      const dots=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="4.5" fill="#8b5cf6"/><text x="${x(i)}" y="${y(p.v)-9}" font-size="11" font-weight="900" fill="#7c3aed" text-anchor="middle">${p.v}</text>`).join('');
-      const labels=pts.map((p,i)=>(pts.length<=8||i%2===0)?`<text x="${x(i)}" y="${H-4}" font-size="9" fill="#94a3b8" text-anchor="middle">${p.d}</text>`:'').join('');
-      inner=`<svg class="line-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${line}" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round"/>${dots}${labels}</svg>`;}
-    recHtml=`<div class="card"><div class="card-title">🏅 ${esc(recTask.title)} の きろく</div>${inner}</div>`;
+  if(recTasksAll.length){
+    recHtml=`<div class="card"><div class="card-title">🏅 きろく</div>
+      <button class="rep-btn" style="background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff;width:100%" onclick="act.openRecords()">🏅 いろんな きろくを 見る（${recTasksAll.length}こ）</button>
+    </div>`;
   }
 
   // 熱中シグナル
@@ -2158,7 +2208,7 @@ function renderOverlay(){
   const o=document.getElementById('overlay');
   if(!editing){o.innerHTML='';return}
   const isNew=editing.index===-1;
-  const t=isNew?{icon:'⭐',title:'',desc:'',min:5,recordLabel:'',video:'',from:'',to:''}:tasks[editing.section][editing.index];
+  const t=isNew?{icon:'⭐',title:'',desc:'',min:5,recordLabel:'',recordUnit:'かい',video:'',from:'',to:''}:tasks[editing.section][editing.index];
   const curImg=(!isNew&&pendingImg===undefined&&imgs[t.id])?imgs[t.id]:(typeof pendingImg==='string'?pendingImg:null);
   o.innerHTML=`<div class="modal-bg" onclick="act.closeModal()">
     <div class="modal" onclick="event.stopPropagation()">
@@ -2169,7 +2219,12 @@ function renderOverlay(){
       </div>
       <div class="f-row"><label>タイトル</label><input id="f-title" value="${esc(t.title)}" placeholder="例: なわとび"></div>
       <div class="f-row"><label>やり方（説明）</label><input id="f-desc" value="${esc(t.desc)}" placeholder="例: 前とび30回 → 後ろとび10回"></div>
-      <div class="f-row"><label>🏅 記録ラベル（任意・数字記録をつけたい場合）</label><input id="f-rec" value="${esc(t.recordLabel||'')}" placeholder="例: 連続最高回数（回）"></div>
+      <div class="f-row"><label>🏅 記録ラベル（任意・数字記録をつけたい場合）</label><input id="f-rec" value="${esc(t.recordLabel||'')}" placeholder="例: 連続最高きろく"></div>
+      <div class="f-row"><label>📏 記録の単位</label>
+        <select id="f-recunit" style="width:100%;box-sizing:border-box;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700;font-size:14px;background:#fff">
+          ${REC_UNITS.map(u=>`<option value="${u}" ${(t.recordUnit||'かい')===u?'selected':''}>${u}</option>`).join('')}
+        </select>
+      </div>
       <div class="f-row"><label>▶ どうがURL（任意・YouTube等。「やりかた」で見られます）</label><input id="f-video" value="${esc(t.video||'')}" placeholder="https://www.youtube.com/watch?v=…"></div>
       ${isNew?`<div class="f-row swap-box"><label>🔄 入れ替え（任意）— このメニューと 入れ替える場合</label>
         <select id="f-swap" style="width:100%;box-sizing:border-box;border:2px solid #e2e8f0;border-radius:10px;padding:9px;font-family:inherit;font-weight:700;font-size:14px;background:#fff" onchange="act.onSwapChange()">
