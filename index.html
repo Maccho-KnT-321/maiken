@@ -1942,13 +1942,28 @@ function viewReportAndLog(){
   for(let i=6;i>=0;i--){const dd=addDays(today,-i);const c=Object.keys(getDay(dd).checks).length;wk.push([dd,c]);if(c>maxC)maxC=c;}
   wk.forEach(([dd,c])=>{bars+=`<div class="bar-col"><div class="bar-v">${c||''}</div><div class="bar" style="height:${c/Math.max(maxC,total)*100}%"></div><div class="bar-d">${dd.slice(5).replace('-','/')}</div></div>`;});
 
-  // 記録メニュー → 「いろんなきろく」ボタン
+  // 記録メニュー：直近更新した記録はグラフ表示、ほかはモーダル
   const recTasksAll=allTasks().filter(t=>t.recordLabel);
   let recHtml='';
   if(recTasksAll.length){
-    recHtml=`<div class="card"><div class="card-title">🏅 きろく</div>
-      <button class="rep-btn" style="background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff;width:100%" onclick="act.openRecords()">🏅 いろんな きろくを 見る（${recTasksAll.length}こ）</button>
+    // 各記録メニューの最終記録日を求め、一番新しいものを「直近更新」とする
+    const lastDateOf=(t)=>{
+      const ds=Object.entries(days).filter(([,v])=>v.records&&v.records[t.id]!=null).map(([dd])=>dd).sort();
+      return ds.length?ds[ds.length-1]:'';
+    };
+    const withDate=recTasksAll.map(t=>({t,last:lastDateOf(t)})).filter(x=>x.last);
+    let chartHtml='', latestTask=null;
+    if(withDate.length){
+      withDate.sort((a,b)=>a.last<b.last?1:-1); // 新しい順
+      latestTask=withDate[0].t;
+      chartHtml=`<div class="card"><div class="card-title">🏅 ${esc(latestTask.recordLabel||latestTask.title)}</div>${recChartSvg(latestTask)}</div>`;
+    }
+    const others=recTasksAll.length-(latestTask?1:0);
+    const label=latestTask?('ほかの きろくも 見る（'+others+'こ）'):('いろんな きろくを 見る（'+recTasksAll.length+'こ）');
+    const btn=`<div class="card"><div class="card-title">🏅 きろく</div>
+      <button class="rep-btn" style="background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff;width:100%" onclick="act.openRecords()">🏅 ${label}</button>
     </div>`;
+    recHtml=chartHtml+btn;
   }
 
   // 熱中シグナル
